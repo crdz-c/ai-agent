@@ -1,7 +1,8 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const { Configuration, OpenAIApi } = require("openai");
+const OpenAI = require("openai");
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,17 +10,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-const configuration = new Configuration({
-  apiKey: "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",
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
-const openai = new OpenAIApi(configuration);
 
 // Endpoint principal
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
 
   try {
-    const completion = await openai.createChatCompletion({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
