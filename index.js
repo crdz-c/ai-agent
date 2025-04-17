@@ -1,7 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const OpenAI = require("openai");
+const OpenAI = require("openai").default;
 require('dotenv').config();
 
 const app = express();
@@ -36,11 +36,20 @@ app.post("/agent", async (req, res) => {
       ],
     });
 
-    const resposta = completion.data.choices[0].message;
-    res.json({ status: "ok", received: input, resposta });
+    const resposta = completion?.choices?.[0]?.message?.content || "Sem resposta do GPT.";
+
+    res.json({
+      status: "ok",
+      received: input,
+      response: resposta
+    });
+
   } catch (error) {
-    console.error("Erro com o GPT:", error);
-    res.status(500).json({ error: "Erro ao processar o comando com o GPT" });
+    console.error("Erro com o GPT:", error?.response?.data || error.message || error);
+    res.status(500).json({
+      status: "error",
+      error: "Falha ao processar a resposta do GPT."
+    });
   }
 });
 
