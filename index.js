@@ -49,18 +49,38 @@ app.post("/agent", async (req, res) => {
     });
 
     const resposta = (completion?.choices?.[0]?.message?.content || "").trim();
-    const respostaFinal = resposta || "⚠️ O GPT não retornou uma resposta válida.";
-    
+    let jsonFormatado = null;
+
+    try {
+      jsonFormatado = JSON.parse(resposta);
+    } catch (e) {
+      return res.status(400).json({
+        status: "error",
+        error: "Resposta do GPT não é um JSON válido.",
+        raw: resposta
+      });
+    }
+
+    const { tipo, app, title, due_date } = jsonFormatado;
+
+    if (!tipo || !app || !title || !due_date) {
+      return res.status(400).json({
+        status: "error",
+        error: "JSON retornado está incompleto. Esperado: tipo, app, title, due_date.",
+        raw: jsonFormatado
+      });
+    }
+
     await supabase.from('entries').insert([
       {
         input,
-        response: respostaFinal
+        response: JSON.stringify(jsonFormatado)
       }
     ]);
 
     res.status(200).json({
       received: input,
-      response: respostaFinal
+      response: jsonFormatado
     });
 
   } catch (error) {
