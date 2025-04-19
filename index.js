@@ -48,17 +48,19 @@ app.post("/agent", async (req, res) => {
       ],
     });
 
-    const resposta = completion?.choices?.[0]?.message?.content?.trim() || "Sem resposta gerada.";
+    const resposta = (completion?.choices?.[0]?.message?.content || "").trim();
+    const respostaFinal = resposta || "⚠️ O GPT não retornou uma resposta válida.";
     
     await supabase.from('entries').insert([
       {
         input,
-        response: resposta
+        response: respostaFinal
       }
     ]);
 
     res.status(200).json({
-      response: resposta
+      received: input,
+      response: respostaFinal
     });
 
   } catch (error) {
