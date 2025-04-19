@@ -1,8 +1,14 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const OpenAI = require("openai").default;
 require('dotenv').config();
+const OpenAI = require("openai").default;
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +23,12 @@ const openai = new OpenAI({
 // Endpoint principal
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
+  if (!input || typeof input !== 'string') {
+    return res.status(400).json({
+      status: "error",
+      error: "Requisição malformada: o campo 'input' deve ser uma string válida."
+    });
+  }
 
   try {
     const completion = await openai.chat.completions.create({
@@ -36,11 +48,16 @@ app.post("/agent", async (req, res) => {
       ],
     });
 
-    const resposta = completion?.choices?.[0]?.message?.content || "Sem resposta do GPT.";
+    const resposta = completion?.choices?.[0]?.message?.content?.trim() || "Sem resposta gerada.";
+    
+    await supabase.from('entries').insert([
+      {
+        input,
+        response: resposta
+      }
+    ]);
 
-    res.json({
-      status: "ok",
-      received: input,
+    res.status(200).json({
       response: resposta
     });
 
@@ -56,6 +73,13 @@ app.post("/agent", async (req, res) => {
 // Teste GET
 app.get("/", (req, res) => {
   res.send("👋 AI Agent Online!");
+});
+
+// Endpoint de diagnóstico rápido
+app.post("/debug", (req, res) => {
+  res.json({
+    received: req.body
+  });
 });
 
 app.listen(PORT, () => {
