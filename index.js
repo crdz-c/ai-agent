@@ -123,7 +123,7 @@ Resposta:
           messages: [
             {
               role: "system",
-              content: `Você é o assistente pessoal do Lucas. Sua tarefa é transformar dados de resposta de uma API em mensagens amigáveis e informativas em português. Seja direto, claro, informal e use emojis e Markdown se fizer sentido.`
+              content: `Você é o assistente pessoal do Lucas. Sua tarefa é transformar a resposta de uma API em uma mensagem clara, útil e amigável em português. Use um tom direto, informal e humano. Se houver links, destaque com [ver mais](link). Use Markdown com moderação e emojis apenas quando fizer sentido. Resuma as informações importantes sem repetir campos técnicos.`
             },
             {
               role: "user",
