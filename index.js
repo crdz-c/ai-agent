@@ -24,6 +24,10 @@ const openai = new OpenAI({
 // Endpoint principal
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
+  const token = req.headers['authorization'];
+  if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
+    return res.status(403).json({ error: "Acesso não autorizado" });
+  }
   if (!input || typeof input !== 'string') {
     return res.status(400).json({
       status: "error",
@@ -114,10 +118,28 @@ Resposta:
           dueDate: jsonFormatado.due_date
         });
 
+        const formattedMessage = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content: `Você é o assistente pessoal do Lucas. Sua tarefa é transformar dados de resposta de uma API em mensagens amigáveis e informativas em português. Seja direto, claro, informal e use emojis e Markdown se fizer sentido.`
+            },
+            {
+              role: "user",
+              content: `Essa foi a resposta da API:\n${JSON.stringify(resultadoTodoist)}`
+            }
+          ],
+          temperature: 0.7
+        });
+
+        const pretty = formattedMessage.choices[0]?.message?.content || "";
+
         return res.status(200).json({
           received: input,
           response: jsonFormatado,
-          todoist: resultadoTodoist
+          todoist: resultadoTodoist,
+          message: pretty
         });
       } catch (e) {
         return res.status(500).json({
@@ -157,6 +179,10 @@ app.post("/debug", (req, res) => {
 
 // Endpoint para listar todas as tarefas do Todoist
 app.get("/tasks", async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
+    return res.status(403).json({ error: "Acesso não autorizado" });
+  }
   try {
     const tarefas = await getAllTasks();
     res.json({ tarefas });
