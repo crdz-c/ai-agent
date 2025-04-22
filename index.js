@@ -154,6 +154,21 @@ app.post("/debug", (req, res) => {
   });
 });
 
+
+// Endpoint para listar todas as tarefas do Todoist
+app.get("/tasks", async (req, res) => {
+  try {
+    const tarefas = await getAllTasks();
+    res.json({ tarefas });
+  } catch (e) {
+    res.status(500).json({
+      status: "error",
+      error: "Erro ao buscar tarefas no Todoist.",
+      details: e.message
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
