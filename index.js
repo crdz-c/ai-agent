@@ -4,6 +4,7 @@ const cors = require("cors");
 require('dotenv').config();
 const OpenAI = require("openai").default;
 const { createClient } = require('@supabase/supabase-js');
+const { createTask, updateTask, deleteTask, getAllTasks } = require('./services/todoist');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -108,27 +109,10 @@ Resposta:
     // Executa ação se for uma criação no Todoist
     if (jsonFormatado.app === "todoist" && jsonFormatado.action === "criar" && jsonFormatado.tipo === "task") {
       try {
-        const responseTodoist = await fetch("https://api.todoist.com/rest/v2/tasks", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${process.env.TODOIST_API_KEY}`
-          },
-          body: JSON.stringify({
-            content: jsonFormatado.title,
-            due_datetime: jsonFormatado.due_date
-          })
+        const resultadoTodoist = await createTask({
+          title: jsonFormatado.title,
+          dueDate: jsonFormatado.due_date
         });
-
-        const resultadoTodoist = await responseTodoist.json();
-
-        if (!responseTodoist.ok) {
-          return res.status(500).json({
-            status: "error",
-            error: "Falha ao criar tarefa no Todoist.",
-            todoistError: resultadoTodoist
-          });
-        }
 
         return res.status(200).json({
           received: input,
