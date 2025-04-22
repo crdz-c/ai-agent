@@ -105,6 +105,45 @@ Resposta:
       }
     ]);
 
+    // Executa ação se for uma criação no Todoist
+    if (jsonFormatado.app === "todoist" && jsonFormatado.action === "criar" && jsonFormatado.tipo === "task") {
+      try {
+        const responseTodoist = await fetch("https://api.todoist.com/rest/v2/tasks", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${process.env.TODOIST_API_KEY}`
+          },
+          body: JSON.stringify({
+            content: jsonFormatado.title,
+            due_datetime: jsonFormatado.due_date
+          })
+        });
+
+        const resultadoTodoist = await responseTodoist.json();
+
+        if (!responseTodoist.ok) {
+          return res.status(500).json({
+            status: "error",
+            error: "Falha ao criar tarefa no Todoist.",
+            todoistError: resultadoTodoist
+          });
+        }
+
+        return res.status(200).json({
+          received: input,
+          response: jsonFormatado,
+          todoist: resultadoTodoist
+        });
+      } catch (e) {
+        return res.status(500).json({
+          status: "error",
+          error: "Erro ao enviar tarefa para o Todoist.",
+          details: e.message
+        });
+      }
+    }
+
     res.status(200).json({
       received: input,
       response: jsonFormatado
