@@ -21,17 +21,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-// Endpoint principal
+// Main endpoint
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
   const token = req.headers['authorization'];
   if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
-    return res.status(403).json({ error: "Acesso não autorizado" });
+    return res.status(403).json({ error: "Unauthorized access" });
   }
   if (!input || typeof input !== 'string') {
     return res.status(400).json({
       status: "error",
-      error: "Requisição malformada: o campo 'input' deve ser uma string válida."
+      error: "Malformed request: the 'input' field must be a valid string."
     });
   }
 
@@ -41,81 +41,67 @@ app.post("/agent", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `Você é o assistente pessoal inteligente do Lucas Cardozo. Seu papel é ajudar a organizar sua vida, entender comandos curtos e responder sempre com um JSON estruturado, sem explicações adicionais.
+          content: `You are the intelligent personal assistant for Lucas Cardozo.
 
-Seu objetivo principal é interpretar a intenção de Lucas com clareza, classificar o tipo de ação e indicar para qual app a ação deve ser executada.
+Your job is to clearly interpret the user's intent in natural language and return a response in JSON format, without explanations.
 
-Sempre responda no formato abaixo:
+Always respond using this structure:
 
 {
-  "action": "criar" | "buscar",
-  "app": "todoist" | "supabase" | "notion" | "gmail" | "slack",
-  "tipo": "task" | "evento" | "nota" | "mensagem",
-  "title": "Título ou conteúdo principal",
-  "due_date": "Data e hora no formato ISO 8601 (ex: 2025-04-21T14:00)",
-  "data": "Data ou intervalo de interesse para buscas (ex: 'hoje', 'próxima semana')"
+  "intent": "create_task" | "check_email" | "create_note" | etc,
+  "target_app": "todoist" | "gmail" | "calendar" | "notion" | "slack" | "spotify" | "lastfm" | "openai",
+  "parameters": {
+    // object with keys relevant to the action, like title, date, recipient, label, etc.
+  },
+  "confirmation_message": "A short, friendly confirmation message in plain English."
 }
 
-Regras:
-- Use "app": "todoist" para tarefas reais (criar ou consultar tarefas do Todoist).
-- Use "app": "supabase" apenas para recuperar histórico de mensagens, contextos e interações anteriores com você mesmo.
-- Se o comando for apenas informativo ou não envolver nenhuma ação, ainda assim responda com o JSON e use "action": "buscar" com "app": "supabase" e "tipo": "mensagem".
-- Nunca invente dados. Se algo estiver faltando, use campos vazios mas mantenha a estrutura JSON.
-
-Exemplo:
-Entrada:
-"Tenho algo pra amanhã?"
-
-Resposta:
-{
-  "action": "buscar",
-  "app": "todoist",
-  "tipo": "task",
-  "title": "",
-  "due_date": "2025-04-21T00:00",
-  "data": "amanhã"
-}`,
+Guidelines:
+- Be specific with the \`intent\` and use the clearest match based on the input.
+- Use \`parameters\` to pass all required values for the action.
+- The \`confirmation_message\` must summarize the action and use Markdown formatting where appropriate.
+- If something is missing, leave it blank but keep the structure intact.`
         },
         { role: "user", content: input },
       ],
     });
 
-    const resposta = (completion?.choices?.[0]?.message?.content || "").trim();
-    let jsonFormatado = null;
+    const responseText = (completion?.choices?.[0]?.message?.content || "").trim();
+    let parsedResponse = null;
 
     try {
-      jsonFormatado = JSON.parse(resposta);
+      parsedResponse = JSON.parse(responseText);
     } catch (e) {
       return res.status(400).json({
         status: "error",
-        error: "Resposta do GPT não é um JSON válido.",
-        raw: resposta
+        error: "GPT response is not valid JSON.",
+        raw: responseText
       });
     }
 
-    const { tipo, app, title, due_date } = jsonFormatado;
+    const { intent, target_app, parameters } = parsedResponse;
 
-    if (!tipo || !app || !title || !due_date) {
+    if (!intent || !target_app || !parameters) {
       return res.status(400).json({
         status: "error",
-        error: "JSON retornado está incompleto. Esperado: tipo, app, title, due_date.",
-        raw: jsonFormatado
+        error: "Returned JSON is incomplete. Expected: intent, target_app, parameters.",
+        raw: parsedResponse
       });
     }
 
     await supabase.from('entries').insert([
       {
         input,
-        response: JSON.stringify(jsonFormatado)
+        response: JSON.stringify(parsedResponse)
       }
     ]);
 
-    // Executa ação se for uma criação no Todoist
-    if (jsonFormatado.app === "todoist" && jsonFormatado.action === "criar" && jsonFormatado.tipo === "task") {
+    // Execute action if it's a creation in Todoist
+    if (parsedResponse.target_app === "todoist" && parsedResponse.intent === "create_task") {
       try {
         const resultadoTodoist = await createTask({
-          title: jsonFormatado.title,
-          dueDate: jsonFormatado.due_date
+          title: parsedResponse.parameters.title,
+          dueDate: parsedResponse.parameters.due_date
         });
 
         const formattedMessage = await openai.chat.completions.create({
@@ -123,11 +109,11 @@ Resposta:
           messages: [
             {
               role: "system",
-              content: `Você é o assistente pessoal do Lucas. Sua tarefa é transformar a resposta de uma API em uma mensagem clara, útil e amigável em português. Use um tom direto, informal e humano. Se houver links, destaque com [ver mais](link). Use Markdown com moderação e emojis apenas quando fizer sentido. Resuma as informações importantes sem repetir campos técnicos.`
+              content: `You are Lucas's personal assistant. Your task is to transform an API response into a clear, useful, and friendly message in English. Use a direct, informal, and human tone. If there are links, highlight with [see more](link). Use Markdown moderately and emojis only when appropriate. Summarize important information without repeating technical fields.`
             },
             {
               role: "user",
-              content: `Essa foi a resposta da API:\n${JSON.stringify(resultadoTodoist)}`
+              content: `This was the API response:\n${JSON.stringify(resultadoTodoist)}`
             }
           ],
           temperature: 0.7
@@ -137,14 +123,14 @@ Resposta:
 
         return res.status(200).json({
           received: input,
-          response: jsonFormatado,
+          response: parsedResponse,
           todoist: resultadoTodoist,
           message: pretty
         });
       } catch (e) {
         return res.status(500).json({
           status: "error",
-          error: "Erro ao enviar tarefa para o Todoist.",
+          error: "Error sending task to Todoist.",
           details: e.message
         });
       }
@@ -152,24 +138,24 @@ Resposta:
 
     res.status(200).json({
       received: input,
-      response: jsonFormatado
+      response: parsedResponse
     });
 
   } catch (error) {
-    console.error("Erro com o GPT:", error?.response?.data || error.message || error);
+    console.error("GPT error:", error?.response?.data || error.message || error);
     res.status(500).json({
       status: "error",
-      error: "Falha ao processar a resposta do GPT."
+      error: "Failed to process GPT response."
     });
   }
 });
 
-// Teste GET
+// GET test
 app.get("/", (req, res) => {
   res.send("👋 AI Agent Online!");
 });
 
-// Endpoint de diagnóstico rápido
+// Quick diagnostic endpoint
 app.post("/debug", (req, res) => {
   res.json({
     received: req.body
@@ -177,24 +163,24 @@ app.post("/debug", (req, res) => {
 });
 
 
-// Endpoint para listar todas as tarefas do Todoist
+// Endpoint to list all Todoist tasks
 app.get("/tasks", async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
-    return res.status(403).json({ error: "Acesso não autorizado" });
+    return res.status(403).json({ error: "Unauthorized access" });
   }
   try {
-    const tarefas = await getAllTasks();
-    res.json({ tarefas });
+    const tasks = await getAllTasks();
+    res.json({ tasks });
   } catch (e) {
     res.status(500).json({
       status: "error",
-      error: "Erro ao buscar tarefas no Todoist.",
+      error: "Error fetching tasks from Todoist.",
       details: e.message
     });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
