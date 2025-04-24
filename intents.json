@@ -1,0 +1,69 @@
+{
+  "task": {
+    "default_app": "todoist",
+    "actions": {
+      "create": "create_task",
+      "update": "update_task",
+      "delete": "delete_task",
+      "check": "check_tasks"
+    }
+  },
+  "email": {
+    "default_app": "gmail",
+    "actions": {
+      "check": "check_email",
+      "send": "send_email",
+      "delete": "delete_email"
+    }
+  },
+  "calendar": {
+    "default_app": "google_calendar",
+    "actions": {
+      "check": "check_calendar",
+      "create": "create_event",
+      "update": "update_event",
+      "delete": "delete_event"
+    }
+  },
+  "note": {
+    "default_app": "notion",
+    "actions": {
+      "check": "check_notes",
+      "create": "create_note",
+      "update": "update_note",
+      "delete": "delete_note"
+    }
+  },
+  "chat": {
+    "default_app": "telegram",
+    "actions": {
+      "send": "send_message",
+      "check": "check_messages"
+    }
+  },
+  "music": {
+    "default_app": "spotify",
+    "actions": {
+      "play": "play_music",
+      "pause": "pause_music",
+      "queue": "add_to_queue",
+      "playlist": "get_playlist"
+    }
+  },
+  "tracking": {
+    "default_app": "lastfm",
+    "actions": {
+      "recent": "get_recent_tracks",
+      "top": "get_top_artists",
+      "now": "get_now_playing"
+    }
+  },
+  "ai": {
+    "default_app": "openai",
+    "actions": {
+      "ask": "chat_with_gpt",
+      "analyze": "analyze_text",
+      "generate": "generate_text"
+    }
+  }
+}
