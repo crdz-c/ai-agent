@@ -21,6 +21,19 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
+// Define intentRouter with handlers
+const intentRouter = {
+  create_task: {
+    todoist: async (parameters) => {
+      return await createTask({
+        title: parameters.title,
+        dueDate: parameters.due_date
+      });
+    }
+  },
+  // other intents and target_apps can be added here
+};
+
 // Main endpoint
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
@@ -96,13 +109,11 @@ Guidelines:
       }
     ]);
 
-    // Execute action if it's a creation in Todoist
-    if (parsedResponse.target_app === "todoist" && parsedResponse.intent === "create_task") {
+    const handler = intentRouter[intent]?.[target_app];
+
+    if (typeof handler === "function") {
       try {
-        const resultadoTodoist = await createTask({
-          title: parsedResponse.parameters.title,
-          dueDate: parsedResponse.parameters.due_date
-        });
+        const result = await handler(parameters);
 
         const formattedMessage = await openai.chat.completions.create({
           model: "gpt-4",
@@ -113,7 +124,7 @@ Guidelines:
             },
             {
               role: "user",
-              content: `This was the API response:\n${JSON.stringify(resultadoTodoist)}`
+              content: `This was the API response:\n${JSON.stringify(result)}`
             }
           ],
           temperature: 0.7
@@ -124,13 +135,13 @@ Guidelines:
         return res.status(200).json({
           received: input,
           response: parsedResponse,
-          todoist: resultadoTodoist,
+          result,
           message: pretty
         });
       } catch (e) {
         return res.status(500).json({
           status: "error",
-          error: "Error sending task to Todoist.",
+          error: "Error executing intent handler.",
           details: e.message
         });
       }
