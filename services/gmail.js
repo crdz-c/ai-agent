@@ -1,5 +1,3 @@
-
-
 const { google } = require('googleapis');
 const { getOAuthClient } = require('./googleAuth');
 const base64url = require('base64url');
@@ -32,13 +30,14 @@ async function sendEmail({ to, subject, message }) {
 }
 
 // List recent emails
-async function listEmails(maxResults = 5) {
+async function listEmails({ quantity = 5 }) {
+  const limit = Math.min(quantity, 10);
   const auth = getOAuthClient();
   const gmail = google.gmail({ version: 'v1', auth });
 
   const res = await gmail.users.messages.list({
     userId: 'me',
-    maxResults
+    maxResults: limit
   });
 
   const messages = res.data.messages || [];
