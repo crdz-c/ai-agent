@@ -5,6 +5,7 @@ require('dotenv').config();
 const OpenAI = require("openai").default;
 const { createClient } = require('@supabase/supabase-js');
 const { createTask, updateTask, deleteTask, getAllTasks } = require('./services/todoist');
+const { google } = require('googleapis');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -20,6 +21,12 @@ app.use(bodyParser.json());
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
 
 // Define intentRouter with handlers
 const intentRouter = {
@@ -189,6 +196,22 @@ app.get("/tasks", async (req, res) => {
       error: "Error fetching tasks from Todoist.",
       details: e.message
     });
+  }
+});
+
+app.get('/oauth2callback', async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.status(400).send('Authorization code not found');
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+    res.send('Authentication successful! You can close this window.');
+  } catch (error) {
+    console.error('Error exchanging code for token:', error);
+    res.status(500).send('Failed to authenticate.');
   }
 });
 
