@@ -5,7 +5,6 @@ require('dotenv').config();
 const OpenAI = require("openai").default;
 const { createClient } = require('@supabase/supabase-js');
 const { createTask, updateTask, deleteTask, getAllTasks } = require('./services/todoist');
-const { google } = require('googleapis');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,11 +21,6 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
 });
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
 
 // Define intentRouter with handlers
 const intentRouter = {
@@ -122,28 +116,14 @@ Guidelines:
       try {
         const result = await handler(parameters);
 
-        const formattedMessage = await openai.chat.completions.create({
-          model: "gpt-4",
-          messages: [
-            {
-              role: "system",
-              content: `You are Lucas's personal assistant. Your task is to transform an API response into a clear, useful, and friendly message in English. Use a direct, informal, and human tone. If there are links, highlight with [see more](link). Use Markdown moderately and emojis only when appropriate. Summarize important information without repeating technical fields.`
-            },
-            {
-              role: "user",
-              content: `This was the API response:\n${JSON.stringify(result)}`
-            }
-          ],
-          temperature: 0.7
-        });
-
-        const pretty = formattedMessage.choices[0]?.message?.content || "";
+        const taskUrl = result?.url ? `\n[Ver tarefa no Todoist](${result.url})` : "";
+        const message = `${parsedResponse.confirmation_message}${taskUrl}`;
 
         return res.status(200).json({
           received: input,
           response: parsedResponse,
           result,
-          message: pretty
+          message
         });
       } catch (e) {
         return res.status(500).json({
@@ -199,21 +179,6 @@ app.get("/tasks", async (req, res) => {
   }
 });
 
-app.get('/oauth2callback', async (req, res) => {
-  const code = req.query.code;
-  if (!code) {
-    return res.status(400).send('Authorization code not found');
-  }
-
-  try {
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
-    res.send('Authentication successful! You can close this window.');
-  } catch (error) {
-    console.error('Error exchanging code for token:', error);
-    res.status(500).send('Failed to authenticate.');
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
