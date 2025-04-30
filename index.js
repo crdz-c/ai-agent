@@ -48,48 +48,100 @@ const openai = new OpenAI({
 });
 
 // Service handlers mapping
-const serviceHandlers = {
+// Define service capabilities
+const serviceCapabilities = {
+  // Todoist capabilities
   todoist: {
-    // Task Management
+    TASK: {
+      CREATE: createTask,
+      UPDATE: updateTask,
+      DELETE: deleteTask,
+      COMPLETE: completeTask,
+      UNCOMPLETE: uncompleteTask,
+      LIST: getAllTasks,
+      GET: getTaskById,
+      SEARCH: searchTasks
+    },
+    PROJECT: {
+      CREATE: createProject,
+      UPDATE: updateProject,
+      DELETE: deleteProject,
+      LIST: getAllProjects,
+      GET: getProjectById
+    },
+    SECTION: {
+      CREATE: createSection,
+      UPDATE: updateSection,
+      DELETE: deleteSection,
+      LIST: getSections
+    },
+    LABEL: {
+      CREATE: createLabel,
+      UPDATE: updateLabel,
+      DELETE: deleteLabel,
+      LIST: getAllLabels
+    },
+    COMMENT: {
+      CREATE: createComment,
+      UPDATE: updateComment,
+      DELETE: deleteComment,
+      LIST: getComments
+    }
+  },
+  
+  // Placeholder for future Zapier integration
+  zapier: {
+    EMAIL: {
+      SEND: null, // Will be implemented when Zapier is integrated
+      LIST: null,
+      SEARCH: null
+    },
+    CALENDAR_EVENT: {
+      CREATE: null,
+      UPDATE: null,
+      DELETE: null,
+      LIST: null
+    },
+    NOTE: {
+      CREATE: null,
+      UPDATE: null,
+      DELETE: null,
+      LIST: null
+    }
+  }
+};
+
+// Legacy handler mapping for backward compatibility
+const legacyHandlers = {
+  todoist: {
     create_task: createTask,
     update_task: updateTask,
     delete_task: deleteTask,
     complete_task: completeTask,
     uncomplete_task: uncompleteTask,
     check_tasks: getAllTasks,
-    
-    // Task Retrieval
     get_task: getTaskById,
     filter_tasks: getFilteredTasks,
     search_tasks: searchTasks,
-    
-    // Project Management
     list_projects: getAllProjects,
     get_project: getProjectById,
     create_project: createProject,
     update_project: updateProject,
     delete_project: deleteProject,
-    
-    // Section Management
     list_sections: getSections,
     create_section: createSection,
     update_section: updateSection,
     delete_section: deleteSection,
-    
-    // Label Management
     list_labels: getAllLabels,
     create_label: createLabel,
     update_label: updateLabel,
     delete_label: deleteLabel,
-    
-    // Comment Management
     list_comments: getComments,
     create_comment: createComment,
     update_comment: updateComment,
     delete_comment: deleteComment
   }
 };
-// Main endpoint
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
   const token = req.headers['authorization'];
@@ -113,140 +165,46 @@ app.post("/agent", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are the intelligent personal assistant for Lucas Cardozo. You can understand and respond to both English and Portuguese inputs.
+          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests in natural language (English only) and translate them into a structured JSON format for execution. Respond *only* with the JSON object, without any introductory text or explanations.
 
-Your job is to clearly interpret the user's intent in natural language and return a response in JSON format, without explanations.
+Your goal is to identify the user's core 'intent', the 'target_app' they likely want to use, extract relevant 'parameters', and formulate a concise 'confirmation_message'.
 
-Always respond using this structure:
-
+**Output JSON Structure:**
 {
-  "intent": "create_task" | "update_task" | "delete_task" | "check_tasks" | "complete_task" | "uncomplete_task" | "search_tasks" | etc,
-  "target_app": "todoist" | "zapier",
-  "parameters": {
-    // object with keys relevant to the action, like title, dueDate, priority, labels, etc.
-  },
-  "confirmation_message": "A short, friendly confirmation message in the same language as the user input."
+  "intent": "ENTITY_ACTION", // Standardized intent name, e.g., TASK_CREATE, EMAIL_SEND. See guidelines.
+  "target_app": "application_name", // e.g., "todoist", "gmail", "notion", "google_calendar", "openai", "spotify"
+  "parameters": { // Dynamically filled based on extracted info. Keys like: "title", "body", "recipient", "due_date", "project_name", "query" },
+  "confirmation_message": "A brief, friendly confirmation message in English summarizing the action. Use Markdown."
 }
 
-## Parameter Formatting Guidelines
+**Guidelines:**
+1.  **Intent Inference (ENTITY_ACTION Format):** Determine the primary entity (e.g., TASK, PROJECT, EMAIL, NOTE, CALENDAR_EVENT, AI) and the primary action (e.g., CREATE, UPDATE, DELETE, LIST, GET, SEND, COMPLETE, SEARCH, PLAY, GENERATE). Combine them as 'ENTITY_ACTION'.
+    * **Examples based on common requests:**
+        * Creating things: `TASK_CREATE`, `PROJECT_CREATE`, `NOTE_CREATE`, `CALENDAR_EVENT_CREATE`, `LABEL_CREATE`, `SECTION_CREATE`, `COMMENT_CREATE`
+        * Modifying things: `TASK_UPDATE`, `PROJECT_UPDATE`, `NOTE_UPDATE`, `CALENDAR_EVENT_UPDATE`, `LABEL_UPDATE`, `SECTION_UPDATE`, `COMMENT_UPDATE`
+        * Removing things: `TASK_DELETE`, `PROJECT_DELETE`, `NOTE_DELETE`, `CALENDAR_EVENT_DELETE`, `LABEL_DELETE`, `SECTION_DELETE`, `COMMENT_DELETE`
+        * Viewing lists/multiple items: `TASK_LIST`, `PROJECT_LIST`, `NOTE_LIST`, `CALENDAR_EVENT_LIST`, `LABEL_LIST`, `SECTION_LIST`, `COMMENT_LIST`, `EMAIL_LIST`, `MESSAGE_LIST` (Use parameters for filtering, e.g., list tasks for 'today', list 'overdue' tasks, list events for 'next week').
+        * Getting a specific item: `TASK_GET`, `PROJECT_GET`, `NOTE_GET`, `EMAIL_GET` (Less common via voice, but possible).
+        * Completing/Status Change: `TASK_COMPLETE`, `TASK_UNCOMPLETE` (or `TASK_REOPEN`)
+        * Searching: `TASK_SEARCH`, `NOTE_SEARCH`, `EMAIL_SEARCH`, `MUSIC_SEARCH`
+        * Communication: `EMAIL_SEND`, `MESSAGE_SEND` (infer app like 'gmail' or 'slack')
+        * AI Interactions: `AI_CHAT` (or `AI_QUERY`), `AI_ANALYZE`, `AI_GENERATE`, `AI_SUMMARIZE`, `AI_TRANSLATE`
+        * Music: `MUSIC_PLAY`, `MUSIC_ADD_TO_PLAYLIST`, `MUSIC_GET_INFO`
+    * Infer the most logical combination based on the user's full request.
 
-### Dates and Times
-- For task due dates, use ISO format: "YYYY-MM-DDThh:mm:ss" 
-- For today: use current date
-- For tomorrow: calculate next day's date
-- Example: "2025-04-30T14:00:00" for April 30, 2025, at 2:00 PM
+2.  **Target Application:** Map applications as follows:
+    * Tasks, projects, sections, labels, comments → "todoist"
+    * Emails, messages → "zapier" 
+    * Calendar events, meetings → "zapier"
+    * Notes, documents → "zapier"
+    * AI queries, generation → "openai"
+    * Music → "spotify"
 
-### Priorities
-- Always use numeric priority values: 
-  - 1 = Low (baixa)
-  - 2 = Medium (média)
-  - 3 = High (alta)
-  - 4 = Urgent (urgente)
-
-### Task Identification
-- When referencing existing tasks, always include either:
-  - "id": "123456789" (exact task ID if provided)
-  - "title": "Exact task title" (complete task title in quotes)
-
-### Labels
-- Pass labels as an array of strings: ["Personal", "Work"]
-- In Portuguese: ["Pessoal", "Trabalho"]
-
-## Language-Specific Guidelines
-
-- Support both English and Portuguese queries - detect the language and respond accordingly
-- All intents must use the English names (e.g., "create_task" not "criar_tarefa")
-- The \`confirmation_message\` must be in the same language as the user's input
-- Use Markdown formatting in confirmation messages: *italic* for task names, **bold** for status
-- Format dates in the language of the user's request
-
-## Examples
-
-### English Example (Create Task)
-User: "Create a task called 'Team meeting' for tomorrow at 2pm with high priority"
-Response:
-\`\`\`json
-{
-  "intent": "create_task",
-  "target_app": "todoist",
-  "parameters": {
-    "title": "Team meeting",
-    "dueDate": "2025-05-01T14:00:00",
-    "priority": 3
-  },
-  "confirmation_message": "Task *Team meeting* has been created for tomorrow at 2:00 PM with **high priority**."
-}
-\`\`\`
-
-### Portuguese Example (Create Task)
-User: "Criar tarefa 'Reunião de equipe' para amanhã às 14h com prioridade alta"
-Response:
-\`\`\`json
-{
-  "intent": "create_task",
-  "target_app": "todoist",
-  "parameters": {
-    "title": "Reunião de equipe",
-    "dueDate": "2025-05-01T14:00:00",
-    "priority": 3
-  },
-  "confirmation_message": "Tarefa *Reunião de equipe* foi criada para amanhã às 14:00 com **prioridade alta**."
-}
-\`\`\`
-
-### English Example (Complete Task)
-User: "Mark the task 'Send report' as complete"
-Response:
-\`\`\`json
-{
-  "intent": "complete_task",
-  "target_app": "todoist",
-  "parameters": {
-    "title": "Send report"
-  },
-  "confirmation_message": "Task *Send report* has been marked as **complete**."
-}
-\`\`\`
-
-### Portuguese Example (Complete Task)
-User: "Marcar a tarefa 'Enviar relatório' como concluída"
-Response:
-\`\`\`json
-{
-  "intent": "complete_task",
-  "target_app": "todoist",
-  "parameters": {
-    "title": "Enviar relatório"
-  },
-  "confirmation_message": "Tarefa *Enviar relatório* foi marcada como **concluída**."
-}
-\`\`\`
-
-## Available Intents
-
-- Task: create_task, update_task, delete_task, check_tasks, complete_task, uncomplete_task, search_tasks, filter_tasks, get_task
-- Project: create_project, update_project, delete_project, list_projects, get_project
-- Section: create_section, update_section, delete_section, list_sections
-- Label: create_label, update_label, delete_label, list_labels
-- Comment: create_comment, update_comment, delete_comment, list_comments`
-        },
-        { role: "user", content: input },
-      ],
-    });
-
-    console.log('OpenAI API response received:', completion);
-
-    const responseText = (completion?.choices?.[0]?.message?.content || "").trim();
-    let parsedResponse = null;
-
-    try {
-      parsedResponse = JSON.parse(responseText);
-    } catch (e) {
-      console.error('Error parsing OpenAI response:', e);
-      return res.status(400).json({
-        status: "error",
-        error: "GPT response is not valid JSON.",
-        raw: responseText
+3.  **Parameter Extraction:** Extract all relevant details (title, description, date/time, people involved, project/label names, search query, etc.) into the 'parameters' object. Normalize dates/times to ISO format "YYYY-MM-DDThh:mm:ss" if possible.
+4.  **Confirmation Message:** Generate a short, user-friendly confirmation in English reflecting the action and key parameters (e.g., "OK, task '**Review PR**' created in project 'Work'.", "Showing your tasks for **today**.", "Playing '**Bohemian Rhapsody**' on Spotify.").
+5.  **Handling Missing Information:** Extract what's available. If critical info is missing for the *execution* later, the subsequent code should handle that; your job here is primarily interpretation into JSON.
+6.  **English Only:** Assume input is English; generate confirmation in English.
+7.  **JSON Only:** Your entire response must be *only* the JSON object without any markdown code blocks or additional formatting.`
       });
     }
 
@@ -269,24 +227,57 @@ Response:
     ]);
 
     // Handle the intent with the appropriate service
-    const handler = serviceHandlers[target_app]?.[intent];
+    let handler;
+    
+    // Check for ENTITY_ACTION format first (new format)
+    if (intent.includes('_')) {
+      const [entity, action] = intent.split('_');
+      handler = serviceCapabilities[target_app]?.[entity]?.[action];
+    }
+    
+    // Fall back to legacy format if no handler found
+    if (!handler) {
+      handler = legacyHandlers[target_app]?.[intent];
+    }
 
     if (handler) {
       try {
         const result = await handler(parameters);
         
-        // Add Todoist-specific URL to message if available
+        // Add tool-specific URL to message if available
         let additionalInfo = "";
         
         if (result?.url) {
-          // Check if the message is in Portuguese based on common Portuguese words
-          const isPtBr = parsedResponse.confirmation_message.match(/tarefa|criada|concluída|atualizada|excluída|encontrada|projeto/i);
+          // Detect language based on the confirmation message
+          const languageDetection = {
+            // Words that indicate Portuguese
+            pt: ['tarefa', 'criada', 'concluída', 'atualizada', 'excluída', 'encontrada', 'projeto', 'reunião', 'marcada'],
+            // Words that indicate Spanish (for future use)
+            es: ['tarea', 'creada', 'completada', 'actualizada', 'eliminada', 'encontrada', 'proyecto', 'reunión'],
+            // French words (for future use)
+            fr: ['tâche', 'créée', 'terminée', 'mise à jour', 'supprimée', 'trouvée', 'projet', 'réunion']
+          };
           
-          if (isPtBr) {
-            additionalInfo = `\n[Ver tarefa no Todoist](${result.url})`;
-          } else {
-            additionalInfo = `\n[View task in Todoist](${result.url})`;
+          // Default to English
+          let language = 'en';
+          
+          // Check each language for matches
+          for (const [lang, words] of Object.entries(languageDetection)) {
+            if (words.some(word => parsedResponse.confirmation_message.toLowerCase().includes(word))) {
+              language = lang;
+              break;
+            }
           }
+          
+          // Set link text based on detected language
+          const linkText = {
+            en: `View ${entity || 'item'} in ${target_app}`,
+            pt: `Ver ${entity === 'TASK' ? 'tarefa' : entity === 'PROJECT' ? 'projeto' : 'item'} no ${target_app}`,
+            es: `Ver ${entity === 'TASK' ? 'tarea' : entity === 'PROJECT' ? 'proyecto' : 'elemento'} en ${target_app}`,
+            fr: `Voir ${entity === 'TASK' ? 'tâche' : entity === 'PROJECT' ? 'projet' : 'élément'} dans ${target_app}`
+          };
+          
+          additionalInfo = `\n[${linkText[language] || linkText.en}](${result.url})`;
         }
         
         const message = `${parsedResponse.confirmation_message}${additionalInfo}`;
