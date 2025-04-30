@@ -60,58 +60,243 @@ async function createTask({ title, dueDate, priority, projectId, sectionId, labe
   return handleTodoistResponse(response);
 }
 
-async function updateTask(taskId, updates) {
+async function updateTask(parameters) {
+  // Handle both direct taskId parameter and parameters object
+  let taskId;
+  let updates = {};
+  
+  if (!parameters) {
+    throw new Error('Parameters are required to update a task.');
+  }
+  
+  // Extract taskId from parameters
+  if (parameters.id) {
+    taskId = parameters.id;
+  } else if (parameters.taskId) {
+    taskId = parameters.taskId;
+  } else {
+    // If we don't have a task ID, try to find the task by content/title
+    if (parameters.title) {
+      console.log('Searching for task by content:', parameters.title);
+      const tasks = await getAllTasks();
+      const task = tasks.find(t => 
+        t.content.toLowerCase().includes(parameters.title.toLowerCase())
+      );
+      
+      if (task) {
+        taskId = task.id;
+        console.log('Found task by content:', { taskId, content: task.content });
+      } else {
+        throw new Error('Task not found. Please provide a valid task ID or title.');
+      }
+    } else {
+      throw new Error('Task ID or title is required to update a task.');
+    }
+  }
+  
+  // Build updates object
+  if (parameters.newTitle || parameters.content) {
+    updates.content = parameters.newTitle || parameters.content;
+  }
+  
+  if (parameters.dueDate || parameters.due_date || parameters.due_datetime) {
+    updates.due_datetime = parameters.dueDate || parameters.due_date || parameters.due_datetime;
+  }
+  
+  if (parameters.priority) {
+    updates.priority = parameters.priority;
+  }
+  
+  if (parameters.labels) {
+    updates.labels = parameters.labels;
+  }
+  
+  if (parameters.description) {
+    updates.description = parameters.description;
+  }
+  
   console.log('Updating Todoist task:', { taskId, updates });
   
-  const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(updates)
-  });
-  
-  return handleTodoistResponse(response);
+  try {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+    
+    const result = await handleTodoistResponse(response);
+    return { 
+      ...result,
+      id: taskId,
+      success: true,
+      message: 'Task updated successfully'
+    };
+  } catch (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
 }
 
-async function deleteTask(taskId) {
+async function deleteTask(parameters) {
+  // Handle both direct taskId parameter and parameters object
+  let taskId;
+  
+  if (typeof parameters === 'string' || typeof parameters === 'number') {
+    taskId = parameters;
+  } else if (parameters && parameters.id) {
+    taskId = parameters.id;
+  } else if (parameters && parameters.taskId) {
+    taskId = parameters.taskId;
+  } else {
+    // If we don't have a task ID, try to find the task by content/title
+    if (parameters && parameters.title) {
+      console.log('Searching for task by content:', parameters.title);
+      const tasks = await getAllTasks();
+      const task = tasks.find(t => 
+        t.content.toLowerCase().includes(parameters.title.toLowerCase())
+      );
+      
+      if (task) {
+        taskId = task.id;
+        console.log('Found task by content:', { taskId, content: task.content });
+      } else {
+        throw new Error('Task not found. Please provide a valid task ID or title.');
+      }
+    } else {
+      throw new Error('Task ID or title is required to delete a task.');
+    }
+  }
+  
   console.log('Deleting Todoist task:', { taskId });
   
-  const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`
-    }
-  });
-  
-  return handleTodoistResponse(response);
+  try {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`
+      }
+    });
+    
+    const result = await handleTodoistResponse(response);
+    return { 
+      ...result,
+      id: taskId,
+      success: true,
+      message: 'Task deleted successfully'
+    };
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    throw error;
+  }
 }
 
-async function completeTask(taskId) {
+async function completeTask(parameters) {
+  // Handle both direct taskId parameter and parameters object
+  let taskId;
+  if (typeof parameters === 'string' || typeof parameters === 'number') {
+    taskId = parameters;
+  } else if (parameters && parameters.id) {
+    taskId = parameters.id;
+  } else if (parameters && parameters.taskId) {
+    taskId = parameters.taskId;
+  } else {
+    // If we don't have a task ID, try to find the task by content/title
+    if (parameters && parameters.title) {
+      console.log('Searching for task by content:', parameters.title);
+      const tasks = await getAllTasks();
+      const task = tasks.find(t => 
+        t.content.toLowerCase().includes(parameters.title.toLowerCase())
+      );
+      
+      if (task) {
+        taskId = task.id;
+        console.log('Found task by content:', { taskId, content: task.content });
+      } else {
+        throw new Error('Task not found. Please provide a valid task ID or title.');
+      }
+    } else {
+      throw new Error('Task ID or title is required to complete a task.');
+    }
+  }
+  
   console.log('Completing Todoist task:', { taskId });
   
-  const response = await fetch(`${API_BASE}/tasks/${taskId}/close`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`
-    }
-  });
-  
-  return handleTodoistResponse(response);
+  try {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}/close`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await handleTodoistResponse(response);
+    return { 
+      ...result,
+      id: taskId,
+      success: true,
+      message: 'Task completed successfully'
+    };
+  } catch (error) {
+    console.error('Error completing task:', error);
+    throw error;
+  }
 }
 
-async function uncompleteTask(taskId) {
+async function uncompleteTask(parameters) {
+  // Handle both direct taskId parameter and parameters object
+  let taskId;
+  if (typeof parameters === 'string' || typeof parameters === 'number') {
+    taskId = parameters;
+  } else if (parameters && parameters.id) {
+    taskId = parameters.id;
+  } else if (parameters && parameters.taskId) {
+    taskId = parameters.taskId;
+  } else {
+    // If we don't have a task ID, try to find the task by content/title
+    if (parameters && parameters.title) {
+      console.log('Searching for task by content:', parameters.title);
+      const tasks = await getAllTasks();
+      const task = tasks.find(t => 
+        t.content.toLowerCase().includes(parameters.title.toLowerCase())
+      );
+      
+      if (task) {
+        taskId = task.id;
+        console.log('Found task by content:', { taskId, content: task.content });
+      } else {
+        throw new Error('Task not found. Please provide a valid task ID or title.');
+      }
+    } else {
+      throw new Error('Task ID or title is required to uncomplete a task.');
+    }
+  }
+  
   console.log('Reopening Todoist task:', { taskId });
   
-  const response = await fetch(`${API_BASE}/tasks/${taskId}/reopen`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${TOKEN}`
-    }
-  });
-  
-  return handleTodoistResponse(response);
+  try {
+    const response = await fetch(`${API_BASE}/tasks/${taskId}/reopen`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const result = await handleTodoistResponse(response);
+    return { 
+      ...result,
+      id: taskId,
+      success: true,
+      message: 'Task reopened successfully'
+    };
+  } catch (error) {
+    console.error('Error reopening task:', error);
+    throw error;
+  }
 }
 
 // Task Retrieval
