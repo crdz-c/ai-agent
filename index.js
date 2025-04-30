@@ -4,8 +4,22 @@ const cors = require("cors");
 require('dotenv').config();
 const OpenAI = require("openai");
 const { createClient } = require('@supabase/supabase-js');
-const { createTask, updateTask, deleteTask, getAllTasks, validateToken } = require('./services/todoist');
-
+const { 
+  // Task Management
+  createTask, updateTask, deleteTask, completeTask, uncompleteTask,
+  // Task Retrieval
+  getAllTasks, getTaskById, getFilteredTasks, searchTasks,
+  // Project Management
+  getAllProjects, getProjectById, createProject, updateProject, deleteProject,
+  // Section Management
+  getSections, createSection, updateSection, deleteSection,
+  // Label Management
+  getAllLabels, createLabel, updateLabel, deleteLabel,
+  // Comment Management
+  getComments, createComment, updateComment, deleteComment,
+  // Token Validation
+  validateToken
+} = require('./services/todoist');
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -36,13 +50,45 @@ const openai = new OpenAI({
 // Service handlers mapping
 const serviceHandlers = {
   todoist: {
+    // Task Management
     create_task: createTask,
     update_task: updateTask,
     delete_task: deleteTask,
-    check_tasks: getAllTasks
+    complete_task: completeTask,
+    uncomplete_task: uncompleteTask,
+    check_tasks: getAllTasks,
+    
+    // Task Retrieval
+    get_task: getTaskById,
+    filter_tasks: getFilteredTasks,
+    search_tasks: searchTasks,
+    
+    // Project Management
+    list_projects: getAllProjects,
+    get_project: getProjectById,
+    create_project: createProject,
+    update_project: updateProject,
+    delete_project: deleteProject,
+    
+    // Section Management
+    list_sections: getSections,
+    create_section: createSection,
+    update_section: updateSection,
+    delete_section: deleteSection,
+    
+    // Label Management
+    list_labels: getAllLabels,
+    create_label: createLabel,
+    update_label: updateLabel,
+    delete_label: deleteLabel,
+    
+    // Comment Management
+    list_comments: getComments,
+    create_comment: createComment,
+    update_comment: updateComment,
+    delete_comment: deleteComment
   }
 };
-
 // Main endpoint
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
@@ -67,26 +113,36 @@ app.post("/agent", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are the intelligent personal assistant for Lucas Cardozo.
+          content: `You are the intelligent personal assistant for Lucas Cardozo. You can understand and respond to both English and Portuguese inputs.
 
 Your job is to clearly interpret the user's intent in natural language and return a response in JSON format, without explanations.
 
 Always respond using this structure:
 
 {
-  "intent": "create_task" | "update_task" | "delete_task" | "check_tasks" | etc,
+  "intent": "create_task" | "update_task" | "delete_task" | "check_tasks" | "complete_task" | "uncomplete_task" | "search_tasks" | etc,
   "target_app": "todoist" | "zapier",
   "parameters": {
     // object with keys relevant to the action, like title, date, recipient, label, etc.
   },
-  "confirmation_message": "A short, friendly confirmation message in plain English."
+  "confirmation_message": "A short, friendly confirmation message in the same language as the user input."
 }
 
 Guidelines:
+- Support both English and Portuguese queries - detect the language and respond accordingly.
 - Be specific with the \`intent\` and use the clearest match based on the input.
 - Use \`parameters\` to pass all required values for the action.
+- The \`confirmation_message\` should be in the same language as the user's input.
+- For Portuguese inputs: "criar tarefa" → "create_task", "completar tarefa" → "complete_task", etc.
 - The \`confirmation_message\` must summarize the action and use Markdown formatting where appropriate.
-- If something is missing, leave it blank but keep the structure intact.`
+- If something is missing, leave it blank but keep the structure intact.
+
+Available intents:
+- Task: create_task, update_task, delete_task, check_tasks, complete_task, uncomplete_task, search_tasks, filter_tasks, get_task
+- Project: create_project, update_project, delete_project, list_projects, get_project
+- Section: create_section, update_section, delete_section, list_sections
+- Label: create_label, update_label, delete_label, list_labels
+- Comment: create_comment, update_comment, delete_comment, list_comments`
         },
         { role: "user", content: input },
       ],
@@ -134,9 +190,20 @@ Guidelines:
         const result = await handler(parameters);
         
         // Add Todoist-specific URL to message if available
-        const taskUrl = result?.url ? `\n[View task in Todoist](${result.url})` : "";
-        const message = `${parsedResponse.confirmation_message}${taskUrl}`;
-
+        let additionalInfo = "";
+        
+        if (result?.url) {
+          // Check if the message is in Portuguese based on common Portuguese words
+          const isPtBr = parsedResponse.confirmation_message.match(/tarefa|criada|concluída|atualizada|excluída|encontrada|projeto/i);
+          
+          if (isPtBr) {
+            additionalInfo = `\n[Ver tarefa no Todoist](${result.url})`;
+          } else {
+            additionalInfo = `\n[View task in Todoist](${result.url})`;
+          }
+        }
+        
+        const message = `${parsedResponse.confirmation_message}${additionalInfo}`;
         return res.status(200).json({
           received: input,
           response: parsedResponse,
@@ -175,7 +242,7 @@ Guidelines:
 app.get("/", (req, res) => {
   res.json({
     status: "healthy",
-    message: "👋 AI Agent Online!",
+    message: "👋 AI Agent Online! (EN/PT-BR)",
     timestamp: new Date().toISOString(),
     version: "1.0.0",
     headers: {

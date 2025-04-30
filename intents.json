@@ -3,59 +3,260 @@
     "default_app": "todoist",
     "actions": {
       "create": "create_task",
+      "add": "create_task",
+      "make": "create_task",
+      "new": "create_task",
+      "criar": "create_task",
+      "adicionar": "create_task",
+      "fazer": "create_task",
+      "nova": "create_task",
+      
       "update": "update_task",
+      "edit": "update_task",
+      "change": "update_task",
+      "modify": "update_task",
+      "atualizar": "update_task",
+      "editar": "update_task",
+      "modificar": "update_task",
+      "alterar": "update_task",
+      
       "delete": "delete_task",
-      "check": "check_tasks"
+      "remove": "delete_task",
+      "erase": "delete_task",
+      "deletar": "delete_task",
+      "remover": "delete_task",
+      "apagar": "delete_task",
+      "excluir": "delete_task",
+      
+      "check": "check_tasks",
+      "view": "check_tasks",
+      "list": "check_tasks",
+      "show": "check_tasks",
+      "get": "check_tasks",
+      "ver": "check_tasks",
+      "listar": "check_tasks",
+      "mostrar": "check_tasks",
+      "exibir": "check_tasks",
+      
+      "complete": "complete_task",
+      "finish": "complete_task",
+      "mark as done": "complete_task",
+      "mark done": "complete_task",
+      "done": "complete_task",
+      "completar": "complete_task",
+      "finalizar": "complete_task",
+      "concluir": "complete_task",
+      "marcar como concluída": "complete_task",
+      "concluída": "complete_task",
+      
+      "uncomplete": "uncomplete_task",
+      "unfinish": "uncomplete_task",
+      "reopen": "uncomplete_task",
+      "mark as not done": "uncomplete_task",
+      "desconcluir": "uncomplete_task",
+      "reabrir": "uncomplete_task",
+      "marcar como não concluída": "uncomplete_task",
+      
+      "search": "search_tasks",
+      "find": "search_tasks",
+      "locate": "search_tasks",
+      "look for": "search_tasks",
+      "buscar": "search_tasks",
+      "procurar": "search_tasks",
+      "encontrar": "search_tasks",
+      "localizar": "search_tasks",
+      
+      "filter": "filter_tasks",
+      "filtrar": "filter_tasks",
+      
+      "today": "filter_tasks",
+      "overdue": "filter_tasks",
+      "upcoming": "filter_tasks",
+      "hoje": "filter_tasks",
+      "atrasadas": "filter_tasks",
+      "pendentes": "filter_tasks",
+      "próximas": "filter_tasks"
     }
   },
-  "email": {
-    "default_app": "gmail",
+  "project": {
+    "default_app": "todoist",
     "actions": {
-      "check": "check_email",
-      "send": "send_email",
-      "delete": "delete_email"
+      "create": "create_project",
+      "add": "create_project",
+      "make": "create_project",
+      "new": "create_project",
+      "criar": "create_project",
+      "adicionar": "create_project",
+      "fazer": "create_project",
+      "novo": "create_project",
+      
+      "update": "update_project",
+      "edit": "update_project",
+      "change": "update_project",
+      "modify": "update_project",
+      "atualizar": "update_project",
+      "editar": "update_project",
+      "modificar": "update_project",
+      "alterar": "update_project",
+      
+      "delete": "delete_project",
+      "remove": "delete_project",
+      "erase": "delete_project",
+      "deletar": "delete_project",
+      "remover": "delete_project",
+      "apagar": "delete_project",
+      "excluir": "delete_project",
+      
+      "list": "list_projects",
+      "view": "list_projects",
+      "show": "list_projects",
+      "get": "list_projects",
+      "listar": "list_projects",
+      "ver": "list_projects",
+      "mostrar": "list_projects",
+      "exibir": "list_projects"
     }
   },
-  "calendar": {
-    "default_app": "google_calendar",
+  "section": {
+    "default_app": "todoist",
     "actions": {
-      "check": "check_calendar",
-      "create": "create_event",
-      "update": "update_event",
-      "delete": "delete_event"
+      "create": "create_section",
+      "add": "create_section",
+      "make": "create_section",
+      "new": "create_section",
+      "criar": "create_section",
+      "adicionar": "create_section",
+      "fazer": "create_section",
+      "nova": "create_section",
+      
+      "update": "update_section",
+      "edit": "update_section",
+      "change": "update_section",
+      "modify": "update_section",
+      "atualizar": "update_section",
+      "editar": "update_section",
+      "modificar": "update_section",
+      "alterar": "update_section",
+      
+      "delete": "delete_section",
+      "remove": "delete_section",
+      "erase": "delete_section",
+      "deletar": "delete_section",
+      "remover": "delete_section",
+      "apagar": "delete_section",
+      "excluir": "delete_section",
+      
+      "list": "list_sections",
+      "view": "list_sections",
+      "show": "list_sections",
+      "get": "list_sections",
+      "listar": "list_sections",
+      "ver": "list_sections",
+      "mostrar": "list_sections",
+      "exibir": "list_sections"
     }
   },
-  "note": {
-    "default_app": "notion",
+  "label": {
+    "default_app": "todoist",
     "actions": {
-      "check": "check_notes",
-      "create": "create_note",
-      "update": "update_note",
-      "delete": "delete_note"
+      "create": "create_label",
+      "add": "create_label",
+      "make": "create_label",
+      "new": "create_label",
+      "criar": "create_label",
+      "adicionar": "create_label",
+      "fazer": "create_label",
+      "nova": "create_label",
+      
+      "update": "update_label",
+      "edit": "update_label",
+      "change": "update_label",
+      "modify": "update_label",
+      "atualizar": "update_label",
+      "editar": "update_label",
+      "modificar": "update_label",
+      "alterar": "update_label",
+      
+      "delete": "delete_label",
+      "remove": "delete_label",
+      "erase": "delete_label",
+      "deletar": "delete_label",
+      "remover": "delete_label",
+      "apagar": "delete_label",
+      "excluir": "delete_label",
+      
+      "list": "list_labels",
+      "view": "list_labels",
+      "show": "list_labels",
+      "get": "list_labels",
+      "listar": "list_labels",
+      "ver": "list_labels",
+      "mostrar": "list_labels",
+      "exibir": "list_labels"
     }
   },
-  "chat": {
-    "default_app": "telegram",
+  "comment": {
+    "default_app": "todoist",
+    "actions": {
+      "create": "create_comment",
+      "add": "create_comment",
+      "make": "create_comment",
+      "new": "create_comment",
+      "criar": "create_comment",
+      "adicionar": "create_comment",
+      "fazer": "create_comment",
+      "novo": "create_comment",
+      
+      "update": "update_comment",
+      "edit": "update_comment",
+      "change": "update_comment",
+      "modify": "update_comment",
+      "atualizar": "update_comment",
+      "editar": "update_comment",
+      "modificar": "update_comment",
+      "alterar": "update_comment",
+      
+      "delete": "delete_comment",
+      "remove": "delete_comment",
+      "erase": "delete_comment",
+      "deletar": "delete_comment",
+      "remover": "delete_comment",
+      "apagar": "delete_comment",
+      "excluir": "delete_comment",
+      
+      "list": "list_comments",
+      "view": "list_comments",
+      "show": "list_comments",
+      "get": "list_comments",
+      "listar": "list_comments",
+      "ver": "list_comments",
+      "mostrar": "list_comments",
+      "exibir": "list_comments"
+    }
+  },
+  "communication": {
+    "default_app": "zapier",
     "actions": {
       "send": "send_message",
       "check": "check_messages"
     }
   },
-  "music": {
-    "default_app": "spotify",
+  "note": {
+    "default_app": "zapier",
     "actions": {
-      "play": "play_music",
-      "pause": "pause_music",
-      "queue": "add_to_queue",
-      "playlist": "get_playlist"
+      "create": "create_note",
+      "update": "update_note",
+      "delete": "delete_note",
+      "check": "check_notes"
     }
   },
-  "tracking": {
-    "default_app": "lastfm",
+  "calendar": {
+    "default_app": "zapier",
     "actions": {
-      "recent": "get_recent_tracks",
-      "top": "get_top_artists",
-      "now": "get_now_playing"
+      "create": "create_event",
+      "update": "update_event",
+      "delete": "delete_event",
+      "check": "check_calendar"
     }
   },
   "ai": {
