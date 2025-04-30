@@ -57,19 +57,21 @@ app.post("/agent", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests and translate them into a structured JSON format for execution.
+          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests into a structured JSON format that our backend service API can execute.
 
-URGENT FORMATTING INSTRUCTION:
-YOUR ENTIRE RESPONSE MUST BE ONE SINGLE VALID JSON OBJECT.
-DO NOT USE MARKDOWN, ESPECIALLY NOT CODE BLOCKS OR BACKTICKS.
-DO NOT START WITH \`\`\`json OR END WITH \`\`\`.
+CRITICAL FORMATTING REQUIREMENT:
+YOUR ENTIRE RESPONSE MUST BE A SINGLE VALID JSON OBJECT.
+DO NOT USE MARKDOWN FORMATTING LIKE CODE BLOCKS OR BACKTICKS.
 DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.
+THE OUTPUT WILL BE DIRECTLY PARSED WITH JSON.parse() WITHOUT ANY PREPROCESSING.
 
-The JSON object you return WILL be directly passed to JSON.parse() without any preprocessing. ANY formatting errors will cause system failure.
+Your goal is to map user intent to our service API capabilities by identifying:
+1. The core 'intent' using ENTITY_ACTION format
+2. The appropriate 'target_app' for execution
+3. All relevant 'parameters' needed for the operation
+4. A clear 'confirmation_message' for user feedback
 
-Your goal is to identify the user's core 'intent', the 'target_app' they likely want to use, extract relevant 'parameters', and formulate a concise 'confirmation_message'.
-
-Output JSON Structure (return exactly this format with your values):
+Output JSON Structure:
 {
   "intent": "ENTITY_ACTION",
   "target_app": "application_name",
@@ -77,23 +79,33 @@ Output JSON Structure (return exactly this format with your values):
     "param1": "value1",
     "param2": "value2"
   },
-  "confirmation_message": "A brief, friendly confirmation message in English summarizing the action. Use Markdown."
+  "confirmation_message": "A brief confirmation message in English summarizing the action. You may use Markdown formatting in this field only."
 }
-**Guidelines:**
-1.  **Intent Inference (ENTITY_ACTION Format):** Determine the primary entity (e.g., TASK, PROJECT, EMAIL, NOTE, CALENDAR_EVENT, AI) and the primary action (e.g., CREATE, UPDATE, DELETE, LIST, GET, SEND, COMPLETE, SEARCH, PLAY, GENERATE). Combine them as 'ENTITY_ACTION'.
-    * **Examples based on common requests:**
-        * Creating things: `TASK_CREATE`, `PROJECT_CREATE`, `NOTE_CREATE`, `CALENDAR_EVENT_CREATE`, `LABEL_CREATE`, `SECTION_CREATE`, `COMMENT_CREATE`
-        * Modifying things: `TASK_UPDATE`, `PROJECT_UPDATE`, `NOTE_UPDATE`, `CALENDAR_EVENT_UPDATE`, `LABEL_UPDATE`, `SECTION_UPDATE`, `COMMENT_UPDATE`
-        * Removing things: `TASK_DELETE`, `PROJECT_DELETE`, `NOTE_DELETE`, `CALENDAR_EVENT_DELETE`, `LABEL_DELETE`, `SECTION_DELETE`, `COMMENT_DELETE`
-        * Viewing lists/multiple items: `TASK_LIST`, `PROJECT_LIST`, `NOTE_LIST`, `CALENDAR_EVENT_LIST`, `LABEL_LIST`, `SECTION_LIST`, `COMMENT_LIST`, `EMAIL_LIST`, `MESSAGE_LIST` (Use parameters for filtering, e.g., list tasks for 'today', list 'overdue' tasks, list events for 'next week').
-        * Getting a specific item: `TASK_GET`, `PROJECT_GET`, `NOTE_GET`, `EMAIL_GET` (Less common via voice, but possible).
-        * Completing/Status Change: `TASK_COMPLETE`, `TASK_UNCOMPLETE` (or `TASK_REOPEN`)
-        * Searching: `TASK_SEARCH`, `NOTE_SEARCH`, `EMAIL_SEARCH`, `MUSIC_SEARCH`
-        * Communication: `EMAIL_SEND`, `MESSAGE_SEND` (infer app like 'gmail' or 'slack')
-        * AI Interactions: `AI_CHAT` (or `AI_QUERY`), `AI_ANALYZE`, `AI_GENERATE`, `AI_SUMMARIZE`, `AI_TRANSLATE`
-        * Music: `MUSIC_PLAY`, `MUSIC_ADD_TO_PLAYLIST`, `MUSIC_GET_INFO`
-    * Map to appropriate target apps: tasks → "todoist", email → "zapier", calendar → "zapier", AI → "openai", music → "spotify"
-3.  **Parameter Extraction:** Extract all relevant details (title, description, date/time, people involved, project/label names, search query, etc.) into the 'parameters' object. Normalize dates/times to ISO format "YYYY-MM-DDThh:mm:ss" if possible.
+
+TECHNICAL IMPLEMENTATION GUIDELINES:
+
+1. SERVICE CAPABILITIES MAP:
+   Our backend supports the following capabilities. Match user requests to these exact patterns:
+   
+   A. TODOIST SERVICE (target_app: "todoist")
+      * Tasks: TASK_CREATE, TASK_UPDATE, TASK_DELETE, TASK_COMPLETE, TASK_UNCOMPLETE, TASK_LIST, TASK_GET, TASK_SEARCH
+      * Projects: PROJECT_CREATE, PROJECT_UPDATE, PROJECT_DELETE, PROJECT_LIST, PROJECT_GET
+      * Sections: SECTION_CREATE, SECTION_UPDATE, SECTION_DELETE, SECTION_LIST
+      * Labels: LABEL_CREATE, LABEL_UPDATE, LABEL_DELETE, LABEL_LIST
+      * Comments: COMMENT_CREATE, COMMENT_UPDATE, COMMENT_DELETE, COMMENT_LIST
+   
+   B. ZAPIER SERVICE (target_app: "zapier")
+      * Email: EMAIL_SEND, EMAIL_LIST, EMAIL_SEARCH, EMAIL_GET, EMAIL_REPLY
+      * Calendar: CALENDAR_EVENT_CREATE, CALENDAR_EVENT_UPDATE, CALENDAR_EVENT_DELETE, CALENDAR_EVENT_LIST, CALENDAR_EVENT_SEARCH, CALENDAR_EVENT_GET
+      * Notes: NOTE_CREATE, NOTE_UPDATE, NOTE_DELETE, NOTE_LIST, NOTE_SEARCH, NOTE_GET
+   
+   C. OPENAI SERVICE (target_app: "openai")
+      * AI functions: AI_CHAT, AI_QUERY, AI_ANALYZE, AI_GENERATE, AI_SUMMARIZE, AI_TRANSLATE
+   
+   D. SPOTIFY SERVICE (target_app: "spotify")
+      * Music functions: MUSIC_PLAY, MUSIC_ADD_TO_PLAYLIST, MUSIC_SEARCH, MUSIC_GET_INFO
+
+2. PARAMETER EXTRACTION REQUIREMENTS:
 4.  **Confirmation Message:** Generate a short, user-friendly confirmation in English reflecting the action and key parameters (e.g., "OK, task '**Review PR**' created in project 'Work'.", "Showing your tasks for **today**.", "Playing '**Bohemian Rhapsody**' on Spotify.").
 5.  **Handling Missing Information:** Extract what's available. If critical info is missing for the *execution* later, the subsequent code should handle that; your job here is primarily interpretation into JSON.
 6.  **English Only:** Assume input is English; generate confirmation in English.
@@ -130,11 +142,19 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
       // Clean and parse the JSON response
       function parseJsonResponse(text) {
         // Clean and extract valid JSON from response
-        let cleaned = text.trim()
-          // Remove code blocks if present
-          .replace(/^```(?:json)?\s*([\s\S]*?)```$/, '$1').trim()
-          // Extract JSON object if surrounded by other content
-          .match(/(\{[\s\S]*\})/)?.pop() || text.trim();
+        let cleaned = text.trim();
+        
+        // Remove code blocks if present
+        const codeBlockMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)```$/);
+        if (codeBlockMatch) {
+          cleaned = codeBlockMatch[1].trim();
+        }
+        
+        // Extract JSON object if surrounded by other content
+        const jsonObjectMatch = cleaned.match(/(\{[\s\S]*\})/);
+        if (jsonObjectMatch) {
+          cleaned = jsonObjectMatch[1].trim();
+        }
         
         // Validate JSON structure
         if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) {
@@ -146,40 +166,39 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
       
       // Parse the response
       parsedResponse = parseJsonResponse(responseText);
+      
+      // Intent field validation and normalization
+      if (parsedResponse.intent !== undefined) {
+        // Ensure intent is a string
+        if (typeof parsedResponse.intent !== 'string') {
+          parsedResponse.intent = String(parsedResponse.intent);
+        }
         
-        // Intent field validation and normalization
-        if (parsedResponse.intent !== undefined) {
-          // Ensure intent is a string
-          if (typeof parsedResponse.intent !== 'string') {
-            parsedResponse.intent = String(parsedResponse.intent);
-          }
-          
-          // Normalize ENTITY_ACTION format
-          if (parsedResponse.intent.includes('_')) {
-            const [entity, action] = parsedResponse.intent.split('_');
-            if (entity && action) {
-              parsedResponse.intent = `${entity.toUpperCase()}_${action.toUpperCase()}`;
-            }
+        // Normalize ENTITY_ACTION format to ensure consistent casing
+        if (parsedResponse.intent.includes('_')) {
+          const [entity, action] = parsedResponse.intent.split('_');
+          if (entity && action) {
+            parsedResponse.intent = `${entity.toUpperCase()}_${action.toUpperCase()}`;
           }
         } else {
-          parsedResponse.intent = "UNKNOWN_ACTION";
+          // Handle legacy format if needed
+          console.log('Warning: Intent does not follow ENTITY_ACTION format:', parsedResponse.intent);
         }
-      } catch (jsonError) {
-        console.error('JSON parsing failed after cleaning:', jsonError);
-        throw new Error(`JSON parsing failed: ${jsonError.message}`);
+      } else {
+        console.log('Warning: Missing intent in GPT response, using UNKNOWN_ACTION');
+        parsedResponse.intent = "UNKNOWN_ACTION";
       }
       
       // Validate required fields
-      if (!parsedResponse.intent || !parsedResponse.target_app || !parsedResponse.parameters) {
-        throw new Error('Missing required fields in response: needs intent, target_app, and parameters');
+      if (!parsedResponse.target_app || !parsedResponse.parameters) {
+        throw new Error('Missing required fields in response: needs target_app and parameters');
       }
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
-      
       return res.status(400).json({
         status: "error",
-        error: "GPT response is not valid JSON or is missing required fields.",
-        error_details: parseError.message
+        error: "Failed to parse GPT response",
+        details: parseError.message
       });
     }
 
@@ -203,22 +222,26 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
         const result = await handler(parameters);
         
         // Create response with link if available
-        let additionalInfo = result?.url ? 
-          `\n[View ${intent.includes('_') ? intent.split('_')[0] : 'item'} in ${target_app}](${result.url})` : 
-          "";
+        let additionalInfo = "";
+        if (result?.url) {
+          const entityType = intent.includes('_') ? intent.split('_')[0].toLowerCase() : 'item';
+          additionalInfo = `\n[View ${entityType} in ${target_app}](${result.url})`;
+        }
         
         return res.status(200).json({
           received: input,
           response: parsedResponse,
           result,
-          message: `${parsedResponse.confirmation_message}${additionalInfo}`
+          message: `${parsedResponse.confirmation_message || 'Request processed successfully.'}${additionalInfo}`
         });
       } catch (e) {
         console.error('Error executing handler:', e);
         return res.status(500).json({
           status: "error",
           error: "Error executing intent handler.",
-          details: e.message
+          details: e.message,
+          intent: intent,
+          target_app: target_app
         });
       }
     }
@@ -227,7 +250,7 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
     res.status(200).json({
       received: input,
       response: parsedResponse,
-      message: "Intent parsed successfully but no handler available."
+      message: `Intent '${intent}' for ${target_app} was recognized but no handler is available.`
     });
 
   } catch (error) {
@@ -235,7 +258,8 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
     res.status(500).json({
       status: "error",
       error: "Failed to process request.",
-      details: error.message
+      details: error.message,
+      request_id: req.headers['x-request-id'] || 'unknown'
     });
   }
 });
