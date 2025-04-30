@@ -165,11 +165,15 @@ app.post("/agent", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests in natural language (English only) and translate them into a structured JSON format for execution.
+          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests and translate them into a structured JSON format for execution.
 
-CRITICAL INSTRUCTION: You must ONLY output a raw, properly formatted JSON object with NO extra text before or after. Do not include code blocks, backticks, indentation, or any explanations.
+URGENT FORMATTING INSTRUCTION:
+YOUR ENTIRE RESPONSE MUST BE ONE SINGLE VALID JSON OBJECT.
+DO NOT USE MARKDOWN, ESPECIALLY NOT CODE BLOCKS OR BACKTICKS.
+DO NOT START WITH \`\`\`json OR END WITH \`\`\`.
+DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT.
 
-RESPONSE FORMAT REQUIREMENT: Your entire response must be one single valid JSON object that can be directly parsed. Nothing else.
+The JSON object you return WILL be directly passed to JSON.parse() without any preprocessing. ANY formatting errors will cause system failure.
 
 Your goal is to identify the user's core 'intent', the 'target_app' they likely want to use, extract relevant 'parameters', and formulate a concise 'confirmation_message'.
 
@@ -243,29 +247,75 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
       let responseText = completion.choices[0].message.content;
       console.log('Processing response:', responseText.substring(0, 100) + '...');
       
-      // Clean up the response text to handle potential code blocks
-      responseText = responseText.trim();
+      // Advanced cleanup function for GPT responses
+      function cleanJsonResponse(text) {
+        // Initial trimming
+        let cleaned = text.trim();
+        
+        // Check if the response is wrapped in code blocks and remove them
+        const jsonBlockRegex = /^```(?:json)?\s*([\s\S]*?)```$/;
+        const jsonBlockMatch = cleaned.match(jsonBlockRegex);
+        
+        if (jsonBlockMatch) {
+          cleaned = jsonBlockMatch[1].trim();
+        }
+        
+        // Check for other markdown or text debris at the start or end
+        const jsonObjectRegex = /(\{[\s\S]*\})/;
+        const jsonObjectMatch = cleaned.match(jsonObjectRegex);
+        
+        if (jsonObjectMatch) {
+          cleaned = jsonObjectMatch[1].trim();
+        }
+        
+        // Final check - must start with { and end with }
+        if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) {
+          console.warn('Cleaned response still does not have proper JSON formatting');
+          // Last resort - try to find anything that looks like a JSON object
+          const lastResortMatch = text.match(/(\{[\s\S]*?\})/);
+          if (lastResortMatch) {
+            cleaned = lastResortMatch[1].trim();
+          }
+        }
+        
+        return cleaned;
+      }
       
-      // Remove markdown code blocks if present
-      if (responseText.startsWith('```json')) {
-        responseText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
-      } else if (responseText.startsWith('```')) {
-        responseText = responseText.replace(/^```\n/, '').replace(/\n```$/, '');
+      // Apply advanced cleanup
+      const cleanedResponse = cleanJsonResponse(responseText);
+      console.log('Cleaned response for parsing:', cleanedResponse.substring(0, 50) + '...');
+      
+      // Validation before parsing
+      if (!cleanedResponse.startsWith('{') || !cleanedResponse.endsWith('}')) {
+        throw new Error('Response is not a valid JSON object after cleaning');
       }
       
       // Parse the JSON response
-      parsedResponse = JSON.parse(responseText);
+      try {
+        parsedResponse = JSON.parse(cleanedResponse);
+      } catch (jsonError) {
+        console.error('JSON parsing failed after cleaning:', jsonError);
+        throw new Error(`JSON parsing failed: ${jsonError.message}`);
+      }
       
       // Validate required fields
       if (!parsedResponse.intent || !parsedResponse.target_app || !parsedResponse.parameters) {
-        throw new Error('Missing required fields in response');
+        throw new Error('Missing required fields in response: needs intent, target_app, and parameters');
       }
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
+      const rawResponse = completion.choices[0]?.message?.content || "No content received";
+      
+      // Advanced error response with more information for debugging
       return res.status(400).json({
         status: "error",
         error: "GPT response is not valid JSON.",
-        raw: completion.choices[0]?.message?.content || "No content received"
+        error_details: parseError.message,
+        raw: rawResponse,
+        attempted_fixes: [
+          rawResponse.indexOf('```') >= 0 ? "Tried removing code blocks" : "No code blocks detected",
+          rawResponse.indexOf('{') >= 0 ? "Tried extracting JSON object" : "No JSON object detected"
+        ]
       });
     }
 
