@@ -162,13 +162,14 @@ app.post("/agent", async (req, res) => {
     
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
-      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests in natural language (English only) and translate them into a structured JSON format for execution.
 
-CRITICAL: Your response MUST be PURE JSON ONLY with NO markdown formatting. Do NOT use code blocks, backticks, or ```json tags. The system needs to parse your response directly as JSON.
+CRITICAL INSTRUCTION: You must ONLY output a raw, properly formatted JSON object with NO extra text before or after. Do not include code blocks, backticks, indentation, or any explanations.
+
+RESPONSE FORMAT REQUIREMENT: Your entire response must be one single valid JSON object that can be directly parsed. Nothing else.
 
 Your goal is to identify the user's core 'intent', the 'target_app' they likely want to use, extract relevant 'parameters', and formulate a concise 'confirmation_message'.
 
@@ -239,11 +240,26 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
     
     try {
       // Extract the content from the completion
-      const responseText = completion.choices[0].message.content;
+      let responseText = completion.choices[0].message.content;
       console.log('Processing response:', responseText.substring(0, 100) + '...');
+      
+      // Clean up the response text to handle potential code blocks
+      responseText = responseText.trim();
+      
+      // Remove markdown code blocks if present
+      if (responseText.startsWith('```json')) {
+        responseText = responseText.replace(/^```json\n/, '').replace(/\n```$/, '');
+      } else if (responseText.startsWith('```')) {
+        responseText = responseText.replace(/^```\n/, '').replace(/\n```$/, '');
+      }
       
       // Parse the JSON response
       parsedResponse = JSON.parse(responseText);
+      
+      // Validate required fields
+      if (!parsedResponse.intent || !parsedResponse.target_app || !parsedResponse.parameters) {
+        throw new Error('Missing required fields in response');
+      }
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
       return res.status(400).json({
