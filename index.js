@@ -2,9 +2,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 require('dotenv').config();
-const OpenAI = require("openai").default;
+const OpenAI = require("openai");
 const { createClient } = require('@supabase/supabase-js');
-const { createTask, updateTask, deleteTask, getAllTasks } = require('./services/todoist');
+const { createTask, updateTask, deleteTask, getAllTasks, validateToken } = require('./services/todoist');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -13,35 +13,45 @@ const supabase = createClient(
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-app.use(cors());
+// Enable trust proxy for Cloudflare
+app.set('trust proxy', true);
+
+app.use(cors({
+  origin: ['https://agent.cardozo.cc', 'http://localhost:3000'],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
+// Initialize OpenAI with project API configuration
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL,
+  defaultQuery: { 'api-version': '2024-02-15' },
+  defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
 });
 
-
-// Define intentRouter with handlers
-const intentRouter = {
-  create_task: {
-    todoist: async (parameters) => {
-      return await createTask({
-        title: parameters.title,
-        dueDate: parameters.due_date
-      });
-    }
-  },
-  // other intents and target_apps can be added here
+// Service handlers mapping
+const serviceHandlers = {
+  todoist: {
+    create_task: createTask,
+    update_task: updateTask,
+    delete_task: deleteTask,
+    check_tasks: getAllTasks
+  }
 };
 
 // Main endpoint
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
   const token = req.headers['authorization'];
+  
   if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
     return res.status(403).json({ error: "Unauthorized access" });
   }
+  
   if (!input || typeof input !== 'string') {
     return res.status(400).json({
       status: "error",
@@ -50,8 +60,10 @@ app.post("/agent", async (req, res) => {
   }
 
   try {
+    console.log('Making OpenAI API request...');
+    
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
@@ -62,8 +74,8 @@ Your job is to clearly interpret the user's intent in natural language and retur
 Always respond using this structure:
 
 {
-  "intent": "create_task" | "check_email" | "create_note" | etc,
-  "target_app": "todoist" | "gmail" | "calendar" | "notion" | "slack" | "spotify" | "lastfm" | "openai",
+  "intent": "create_task" | "update_task" | "delete_task" | "check_tasks" | etc,
+  "target_app": "todoist" | "zapier",
   "parameters": {
     // object with keys relevant to the action, like title, date, recipient, label, etc.
   },
@@ -80,12 +92,15 @@ Guidelines:
       ],
     });
 
+    console.log('OpenAI API response received:', completion);
+
     const responseText = (completion?.choices?.[0]?.message?.content || "").trim();
     let parsedResponse = null;
 
     try {
       parsedResponse = JSON.parse(responseText);
     } catch (e) {
+      console.error('Error parsing OpenAI response:', e);
       return res.status(400).json({
         status: "error",
         error: "GPT response is not valid JSON.",
@@ -103,6 +118,7 @@ Guidelines:
       });
     }
 
+    // Log the interaction in Supabase
     await supabase.from('entries').insert([
       {
         input,
@@ -110,13 +126,15 @@ Guidelines:
       }
     ]);
 
-    const handler = intentRouter[intent]?.[target_app];
+    // Handle the intent with the appropriate service
+    const handler = serviceHandlers[target_app]?.[intent];
 
-    if (typeof handler === "function") {
+    if (handler) {
       try {
         const result = await handler(parameters);
-
-        const taskUrl = result?.url ? `\n[Ver tarefa no Todoist](${result.url})` : "";
+        
+        // Add Todoist-specific URL to message if available
+        const taskUrl = result?.url ? `\n[View task in Todoist](${result.url})` : "";
         const message = `${parsedResponse.confirmation_message}${taskUrl}`;
 
         return res.status(200).json({
@@ -126,6 +144,7 @@ Guidelines:
           message
         });
       } catch (e) {
+        console.error('Error executing handler:', e);
         return res.status(500).json({
           status: "error",
           error: "Error executing intent handler.",
@@ -134,34 +153,48 @@ Guidelines:
       }
     }
 
+    // If no handler found but parsing successful, return the parsed response
     res.status(200).json({
       received: input,
-      response: parsedResponse
+      response: parsedResponse,
+      message: "Intent parsed successfully but no handler available."
     });
 
   } catch (error) {
-    console.error("GPT error:", error?.response?.data || error.message || error);
+    console.error("OpenAI API Error:", error?.response?.data || error.message || error);
     res.status(500).json({
       status: "error",
-      error: "Failed to process GPT response."
+      error: "Failed to process request.",
+      details: error.message,
+      raw_error: error
     });
   }
 });
 
-// GET test
+// Health check endpoint with detailed status
 app.get("/", (req, res) => {
-  res.send("👋 AI Agent Online!");
-});
-
-// Quick diagnostic endpoint
-app.post("/debug", (req, res) => {
   res.json({
-    received: req.body
+    status: "healthy",
+    message: "👋 AI Agent Online!",
+    timestamp: new Date().toISOString(),
+    version: "1.0.0",
+    headers: {
+      'cf-ray': req.headers['cf-ray'],
+      'cf-connecting-ip': req.headers['cf-connecting-ip']
+    }
   });
 });
 
+// Debug endpoint
+app.post("/debug", (req, res) => {
+  res.json({
+    received: req.body,
+    headers: req.headers,
+    ip: req.ip
+  });
+});
 
-// Endpoint to list all Todoist tasks
+// Tasks list endpoint
 app.get("/tasks", async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || token !== `Bearer ${process.env.AGENT_SECRET}`) {
@@ -180,6 +213,26 @@ app.get("/tasks", async (req, res) => {
 });
 
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Validate configuration before starting server
+async function startServer() {
+  try {
+    // Validate Todoist token
+    console.log('Validating Todoist API token...');
+    await validateToken();
+    
+    // Start the server
+    app.listen(PORT, HOST, () => {
+      console.log(`Server running on ${HOST}:${PORT}`);
+      console.log(`Health check available at http://${HOST}:${PORT}/`);
+      console.log('OpenAI Configuration:', {
+        baseURL: process.env.OPENAI_BASE_URL,
+        apiKeyPrefix: process.env.OPENAI_API_KEY.substring(0, 10) + '...'
+      });
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

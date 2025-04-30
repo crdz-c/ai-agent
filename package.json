@@ -1,21 +1,26 @@
 {
-  "name": "agent",
+  "name": "ai-agent",
   "version": "1.0.0",
+  "description": "AI-powered personal assistant with extensible service integration",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "ai",
+    "assistant",
+    "todoist",
+    "automation"
+  ],
+  "author": "Lucas Cardozo",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.6",
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
-    "googleapis": "^148.0.0",
+    "node-fetch": "^2.7.0",
     "openai": "^4.95.0"
   }
 }
