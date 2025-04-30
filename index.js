@@ -162,21 +162,26 @@ app.post("/agent", async (req, res) => {
     
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests in natural language (English only) and translate them into a structured JSON format for execution. Respond *only* with the JSON object, without any introductory text or explanations.
+          content: `You are the intelligent personal assistant for Lucas Cardozo. Your primary function is to interpret user requests in natural language (English only) and translate them into a structured JSON format for execution.
+
+CRITICAL: Your response MUST be PURE JSON ONLY with NO markdown formatting. Do NOT use code blocks, backticks, or ```json tags. The system needs to parse your response directly as JSON.
 
 Your goal is to identify the user's core 'intent', the 'target_app' they likely want to use, extract relevant 'parameters', and formulate a concise 'confirmation_message'.
 
-**Output JSON Structure:**
+Output JSON Structure (return exactly this format with your values):
 {
-  "intent": "ENTITY_ACTION", // Standardized intent name, e.g., TASK_CREATE, EMAIL_SEND. See guidelines.
-  "target_app": "application_name", // e.g., "todoist", "gmail", "notion", "google_calendar", "openai", "spotify"
-  "parameters": { // Dynamically filled based on extracted info. Keys like: "title", "body", "recipient", "due_date", "project_name", "query" },
+  "intent": "ENTITY_ACTION",
+  "target_app": "application_name",
+  "parameters": {
+    "param1": "value1",
+    "param2": "value2"
+  },
   "confirmation_message": "A brief, friendly confirmation message in English summarizing the action. Use Markdown."
 }
-
 **Guidelines:**
 1.  **Intent Inference (ENTITY_ACTION Format):** Determine the primary entity (e.g., TASK, PROJECT, EMAIL, NOTE, CALENDAR_EVENT, AI) and the primary action (e.g., CREATE, UPDATE, DELETE, LIST, GET, SEND, COMPLETE, SEARCH, PLAY, GENERATE). Combine them as 'ENTITY_ACTION'.
     * **Examples based on common requests:**
@@ -204,7 +209,47 @@ Your goal is to identify the user's core 'intent', the 'target_app' they likely 
 4.  **Confirmation Message:** Generate a short, user-friendly confirmation in English reflecting the action and key parameters (e.g., "OK, task '**Review PR**' created in project 'Work'.", "Showing your tasks for **today**.", "Playing '**Bohemian Rhapsody**' on Spotify.").
 5.  **Handling Missing Information:** Extract what's available. If critical info is missing for the *execution* later, the subsequent code should handle that; your job here is primarily interpretation into JSON.
 6.  **English Only:** Assume input is English; generate confirmation in English.
-7.  **JSON Only:** Your entire response must be *only* the JSON object without any markdown code blocks or additional formatting.`
+7.  **CRITICAL - PURE JSON ONLY:** Your response MUST be the raw JSON object itself. Do not wrap it in code blocks. Do not use backticks. Do not use ```json tags. The response will be directly parsed as JSON, so any non-JSON content will cause errors.
+
+IMPORTANT: Examples of WRONG responses:
+```json
+{
+  "intent": "TASK_CREATE",
+  ...
+}
+```
+
+Or:
+{
+  "intent": "TASK_CREATE",
+  ...
+}
+
+Example of CORRECT response format (the only acceptable format):
+{"intent":"TASK_CREATE","target_app":"todoist","parameters":{"title":"Example Task","dueDate":"2023-04-30T15:00:00","priority":3},"confirmation_message":"Task *Example Task* created for April 30th with **high priority**."}
+
+ANY deviation from pure JSON output will cause the integration to FAIL.`
+        }
+      ]
+    });
+    
+    console.log('Response received from OpenAI');
+    
+    let parsedResponse;
+    
+    try {
+      // Extract the content from the completion
+      const responseText = completion.choices[0].message.content;
+      console.log('Processing response:', responseText.substring(0, 100) + '...');
+      
+      // Parse the JSON response
+      parsedResponse = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Error parsing JSON response:', parseError);
+      return res.status(400).json({
+        status: "error",
+        error: "GPT response is not valid JSON.",
+        raw: completion.choices[0]?.message?.content || "No content received"
       });
     }
 
@@ -242,9 +287,9 @@ Your goal is to identify the user's core 'intent', the 'target_app' they likely 
 
     if (handler) {
       try {
+        console.log('Executing handler for intent:', intent);
         const result = await handler(parameters);
         
-        // Add tool-specific URL to message if available
         let additionalInfo = "";
         
         if (result?.url) {
@@ -267,6 +312,12 @@ Your goal is to identify the user's core 'intent', the 'target_app' they likely 
               language = lang;
               break;
             }
+          }
+          
+          // Extract entity from intent if it exists
+          let entity = '';
+          if (intent.includes('_')) {
+            entity = intent.split('_')[0];
           }
           
           // Set link text based on detected language
