@@ -2,269 +2,255 @@
   "task": {
     "default_app": "todoist",
     "actions": {
-      "create": "create_task",
-      "add": "create_task",
-      "make": "create_task",
-      "new": "create_task",
-      "criar": "create_task",
-      "adicionar": "create_task",
-      "fazer": "create_task",
-      "nova": "create_task",
+      "create": "TASK_CREATE",
+      "add": "TASK_CREATE",
+      "make": "TASK_CREATE",
+      "new": "TASK_CREATE",
       
-      "update": "update_task",
-      "edit": "update_task",
-      "change": "update_task",
-      "modify": "update_task",
-      "atualizar": "update_task",
-      "editar": "update_task",
-      "modificar": "update_task",
-      "alterar": "update_task",
+      "update": "TASK_UPDATE",
+      "edit": "TASK_UPDATE",
+      "change": "TASK_UPDATE",
+      "modify": "TASK_UPDATE",
       
-      "delete": "delete_task",
-      "remove": "delete_task",
-      "erase": "delete_task",
-      "deletar": "delete_task",
-      "remover": "delete_task",
-      "apagar": "delete_task",
-      "excluir": "delete_task",
+      "delete": "TASK_DELETE",
+      "remove": "TASK_DELETE",
+      "erase": "TASK_DELETE",
       
-      "check": "check_tasks",
-      "view": "check_tasks",
-      "list": "check_tasks",
-      "show": "check_tasks",
-      "get": "check_tasks",
-      "ver": "check_tasks",
-      "listar": "check_tasks",
-      "mostrar": "check_tasks",
-      "exibir": "check_tasks",
+      "check": "TASK_LIST",
+      "view": "TASK_LIST",
+      "list": "TASK_LIST",
+      "show": "TASK_LIST",
+      "get": "TASK_LIST",
       
-      "complete": "complete_task",
-      "finish": "complete_task",
-      "mark as done": "complete_task",
-      "mark done": "complete_task",
-      "done": "complete_task",
-      "completar": "complete_task",
-      "finalizar": "complete_task",
-      "concluir": "complete_task",
-      "marcar como concluída": "complete_task",
-      "concluída": "complete_task",
+      "complete": "TASK_COMPLETE",
+      "finish": "TASK_COMPLETE",
+      "mark as done": "TASK_COMPLETE",
+      "mark done": "TASK_COMPLETE",
+      "done": "TASK_COMPLETE",
       
-      "uncomplete": "uncomplete_task",
-      "unfinish": "uncomplete_task",
-      "reopen": "uncomplete_task",
-      "mark as not done": "uncomplete_task",
-      "desconcluir": "uncomplete_task",
-      "reabrir": "uncomplete_task",
-      "marcar como não concluída": "uncomplete_task",
+      "uncomplete": "TASK_UNCOMPLETE",
+      "unfinish": "TASK_UNCOMPLETE",
+      "reopen": "TASK_UNCOMPLETE",
+      "mark as not done": "TASK_UNCOMPLETE",
       
-      "search": "search_tasks",
-      "find": "search_tasks",
-      "locate": "search_tasks",
-      "look for": "search_tasks",
-      "buscar": "search_tasks",
-      "procurar": "search_tasks",
-      "encontrar": "search_tasks",
-      "localizar": "search_tasks",
+      "search": "TASK_SEARCH",
+      "find": "TASK_SEARCH",
+      "locate": "TASK_SEARCH",
+      "look for": "TASK_SEARCH",
       
-      "filter": "filter_tasks",
-      "filtrar": "filter_tasks",
-      
-      "today": "filter_tasks",
-      "overdue": "filter_tasks",
-      "upcoming": "filter_tasks",
-      "hoje": "filter_tasks",
-      "atrasadas": "filter_tasks",
-      "pendentes": "filter_tasks",
-      "próximas": "filter_tasks"
+      "today": "TASK_LIST",
+      "overdue": "TASK_LIST",
+      "upcoming": "TASK_LIST"
     }
   },
   "project": {
     "default_app": "todoist",
     "actions": {
-      "create": "create_project",
-      "add": "create_project",
-      "make": "create_project",
-      "new": "create_project",
-      "criar": "create_project",
-      "adicionar": "create_project",
-      "fazer": "create_project",
-      "novo": "create_project",
+      "create": "PROJECT_CREATE",
+      "add": "PROJECT_CREATE",
+      "make": "PROJECT_CREATE",
+      "new": "PROJECT_CREATE",
       
-      "update": "update_project",
-      "edit": "update_project",
-      "change": "update_project",
-      "modify": "update_project",
-      "atualizar": "update_project",
-      "editar": "update_project",
-      "modificar": "update_project",
-      "alterar": "update_project",
+      "update": "PROJECT_UPDATE",
+      "edit": "PROJECT_UPDATE",
+      "change": "PROJECT_UPDATE",
+      "modify": "PROJECT_UPDATE",
       
-      "delete": "delete_project",
-      "remove": "delete_project",
-      "erase": "delete_project",
-      "deletar": "delete_project",
-      "remover": "delete_project",
-      "apagar": "delete_project",
-      "excluir": "delete_project",
+      "delete": "PROJECT_DELETE",
+      "remove": "PROJECT_DELETE",
+      "erase": "PROJECT_DELETE",
       
-      "list": "list_projects",
-      "view": "list_projects",
-      "show": "list_projects",
-      "get": "list_projects",
-      "listar": "list_projects",
-      "ver": "list_projects",
-      "mostrar": "list_projects",
-      "exibir": "list_projects"
+      "list": "PROJECT_LIST",
+      "view": "PROJECT_LIST",
+      "show": "PROJECT_LIST",
+      "get": "PROJECT_LIST",
+      
+      "details": "PROJECT_GET",
+      "info": "PROJECT_GET",
+      "view details": "PROJECT_GET"
     }
   },
   "section": {
     "default_app": "todoist",
     "actions": {
-      "create": "create_section",
-      "add": "create_section",
-      "make": "create_section",
-      "new": "create_section",
-      "criar": "create_section",
-      "adicionar": "create_section",
-      "fazer": "create_section",
-      "nova": "create_section",
+      "create": "SECTION_CREATE",
+      "add": "SECTION_CREATE",
+      "make": "SECTION_CREATE",
+      "new": "SECTION_CREATE",
       
-      "update": "update_section",
-      "edit": "update_section",
-      "change": "update_section",
-      "modify": "update_section",
-      "atualizar": "update_section",
-      "editar": "update_section",
-      "modificar": "update_section",
-      "alterar": "update_section",
+      "update": "SECTION_UPDATE",
+      "edit": "SECTION_UPDATE",
+      "change": "SECTION_UPDATE",
+      "modify": "SECTION_UPDATE",
       
-      "delete": "delete_section",
-      "remove": "delete_section",
-      "erase": "delete_section",
-      "deletar": "delete_section",
-      "remover": "delete_section",
-      "apagar": "delete_section",
-      "excluir": "delete_section",
+      "delete": "SECTION_DELETE",
+      "remove": "SECTION_DELETE",
+      "erase": "SECTION_DELETE",
       
-      "list": "list_sections",
-      "view": "list_sections",
-      "show": "list_sections",
-      "get": "list_sections",
-      "listar": "list_sections",
-      "ver": "list_sections",
-      "mostrar": "list_sections",
-      "exibir": "list_sections"
+      "list": "SECTION_LIST",
+      "view": "SECTION_LIST",
+      "show": "SECTION_LIST",
+      "get": "SECTION_LIST"
     }
   },
   "label": {
     "default_app": "todoist",
     "actions": {
-      "create": "create_label",
-      "add": "create_label",
-      "make": "create_label",
-      "new": "create_label",
-      "criar": "create_label",
-      "adicionar": "create_label",
-      "fazer": "create_label",
-      "nova": "create_label",
+      "create": "LABEL_CREATE",
+      "add": "LABEL_CREATE",
+      "make": "LABEL_CREATE",
+      "new": "LABEL_CREATE",
       
-      "update": "update_label",
-      "edit": "update_label",
-      "change": "update_label",
-      "modify": "update_label",
-      "atualizar": "update_label",
-      "editar": "update_label",
-      "modificar": "update_label",
-      "alterar": "update_label",
+      "update": "LABEL_UPDATE",
+      "edit": "LABEL_UPDATE",
+      "change": "LABEL_UPDATE",
+      "modify": "LABEL_UPDATE",
       
-      "delete": "delete_label",
-      "remove": "delete_label",
-      "erase": "delete_label",
-      "deletar": "delete_label",
-      "remover": "delete_label",
-      "apagar": "delete_label",
-      "excluir": "delete_label",
+      "delete": "LABEL_DELETE",
+      "remove": "LABEL_DELETE",
+      "erase": "LABEL_DELETE",
       
-      "list": "list_labels",
-      "view": "list_labels",
-      "show": "list_labels",
-      "get": "list_labels",
-      "listar": "list_labels",
-      "ver": "list_labels",
-      "mostrar": "list_labels",
-      "exibir": "list_labels"
+      "list": "LABEL_LIST",
+      "view": "LABEL_LIST",
+      "show": "LABEL_LIST",
+      "get": "LABEL_LIST"
     }
   },
   "comment": {
     "default_app": "todoist",
     "actions": {
-      "create": "create_comment",
-      "add": "create_comment",
-      "make": "create_comment",
-      "new": "create_comment",
-      "criar": "create_comment",
-      "adicionar": "create_comment",
-      "fazer": "create_comment",
-      "novo": "create_comment",
+      "create": "COMMENT_CREATE",
+      "add": "COMMENT_CREATE",
+      "make": "COMMENT_CREATE",
+      "new": "COMMENT_CREATE",
       
-      "update": "update_comment",
-      "edit": "update_comment",
-      "change": "update_comment",
-      "modify": "update_comment",
-      "atualizar": "update_comment",
-      "editar": "update_comment",
-      "modificar": "update_comment",
-      "alterar": "update_comment",
+      "update": "COMMENT_UPDATE",
+      "edit": "COMMENT_UPDATE",
+      "change": "COMMENT_UPDATE",
+      "modify": "COMMENT_UPDATE",
       
-      "delete": "delete_comment",
-      "remove": "delete_comment",
-      "erase": "delete_comment",
-      "deletar": "delete_comment",
-      "remover": "delete_comment",
-      "apagar": "delete_comment",
-      "excluir": "delete_comment",
+      "delete": "COMMENT_DELETE",
+      "remove": "COMMENT_DELETE",
+      "erase": "COMMENT_DELETE",
       
-      "list": "list_comments",
-      "view": "list_comments",
-      "show": "list_comments",
-      "get": "list_comments",
-      "listar": "list_comments",
-      "ver": "list_comments",
-      "mostrar": "list_comments",
-      "exibir": "list_comments"
+      "list": "COMMENT_LIST",
+      "view": "COMMENT_LIST",
+      "show": "COMMENT_LIST",
+      "get": "COMMENT_LIST"
     }
   },
-  "communication": {
+  "email": {
     "default_app": "zapier",
     "actions": {
-      "send": "send_message",
-      "check": "check_messages"
+      "send": "EMAIL_SEND",
+      "check": "EMAIL_LIST",
+      "search": "EMAIL_SEARCH",
+      "view": "EMAIL_GET",
+      "reply": "EMAIL_REPLY"
     }
   },
   "note": {
     "default_app": "zapier",
     "actions": {
-      "create": "create_note",
-      "update": "update_note",
-      "delete": "delete_note",
-      "check": "check_notes"
+      "create": "NOTE_CREATE",
+      "add": "NOTE_CREATE",
+      "make": "NOTE_CREATE",
+      "new": "NOTE_CREATE",
+      
+      "update": "NOTE_UPDATE",
+      "edit": "NOTE_UPDATE",
+      "change": "NOTE_UPDATE",
+      "modify": "NOTE_UPDATE",
+      
+      "delete": "NOTE_DELETE",
+      "remove": "NOTE_DELETE",
+      "erase": "NOTE_DELETE",
+      
+      "check": "NOTE_LIST",
+      "list": "NOTE_LIST",
+      "show": "NOTE_LIST",
+      "view": "NOTE_LIST",
+      
+      "search": "NOTE_SEARCH",
+      "find": "NOTE_SEARCH",
+      "locate": "NOTE_SEARCH",
+      
+      "details": "NOTE_GET",
+      "open": "NOTE_GET",
+      "read": "NOTE_GET"
     }
   },
-  "calendar": {
+  "event": {
     "default_app": "zapier",
     "actions": {
-      "create": "create_event",
-      "update": "update_event",
-      "delete": "delete_event",
-      "check": "check_calendar"
+      "create": "CALENDAR_EVENT_CREATE",
+      "add": "CALENDAR_EVENT_CREATE",
+      "schedule": "CALENDAR_EVENT_CREATE",
+      "plan": "CALENDAR_EVENT_CREATE",
+      
+      "update": "CALENDAR_EVENT_UPDATE",
+      "edit": "CALENDAR_EVENT_UPDATE",
+      "change": "CALENDAR_EVENT_UPDATE",
+      "modify": "CALENDAR_EVENT_UPDATE",
+      "reschedule": "CALENDAR_EVENT_UPDATE",
+      
+      "delete": "CALENDAR_EVENT_DELETE",
+      "remove": "CALENDAR_EVENT_DELETE",
+      "cancel": "CALENDAR_EVENT_DELETE",
+      
+      "check": "CALENDAR_EVENT_LIST",
+      "list": "CALENDAR_EVENT_LIST",
+      "show": "CALENDAR_EVENT_LIST",
+      "view": "CALENDAR_EVENT_LIST",
+      
+      "search": "CALENDAR_EVENT_SEARCH",
+      "find": "CALENDAR_EVENT_SEARCH",
+      
+      "details": "CALENDAR_EVENT_GET",
+      "info": "CALENDAR_EVENT_GET"
     }
   },
   "ai": {
     "default_app": "openai",
     "actions": {
-      "ask": "chat_with_gpt",
-      "analyze": "analyze_text",
-      "generate": "generate_text"
+      "ask": "AI_CHAT",
+      "chat": "AI_CHAT",
+      "question": "AI_CHAT",
+      "query": "AI_QUERY",
+      
+      "analyze": "AI_ANALYZE",
+      "examine": "AI_ANALYZE",
+      "review": "AI_ANALYZE",
+      
+      "generate": "AI_GENERATE",
+      "create": "AI_GENERATE",
+      "write": "AI_GENERATE",
+      "compose": "AI_GENERATE",
+      
+      "summarize": "AI_SUMMARIZE",
+      "summary": "AI_SUMMARIZE",
+      "shorten": "AI_SUMMARIZE",
+      
+      "translate": "AI_TRANSLATE",
+      "convert": "AI_TRANSLATE"
+    }
+  },
+  "music": {
+    "default_app": "spotify",
+    "actions": {
+      "play": "MUSIC_PLAY",
+      "start": "MUSIC_PLAY",
+      "listen": "MUSIC_PLAY",
+      
+      "add": "MUSIC_ADD_TO_PLAYLIST",
+      "save": "MUSIC_ADD_TO_PLAYLIST",
+      
+      "search": "MUSIC_SEARCH",
+      "find": "MUSIC_SEARCH",
+      
+      "info": "MUSIC_GET_INFO",
+      "details": "MUSIC_GET_INFO",
+      "about": "MUSIC_GET_INFO"
     }
   }
 }

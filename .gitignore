@@ -10,3 +10,11 @@ coverage/
 .env.*.local
 
 .env
+
+# Removed services
+services/calendar.js
+services/gmail.js
+services/googleAuth.js
+
+# Environment files
+.env.example

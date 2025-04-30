@@ -4,22 +4,10 @@ const cors = require("cors");
 require('dotenv').config();
 const OpenAI = require("openai");
 const { createClient } = require('@supabase/supabase-js');
-const { 
-  // Task Management
-  createTask, updateTask, deleteTask, completeTask, uncompleteTask,
-  // Task Retrieval
-  getAllTasks, getTaskById, getFilteredTasks, searchTasks,
-  // Project Management
-  getAllProjects, getProjectById, createProject, updateProject, deleteProject,
-  // Section Management
-  getSections, createSection, updateSection, deleteSection,
-  // Label Management
-  getAllLabels, createLabel, updateLabel, deleteLabel,
-  // Comment Management
-  getComments, createComment, updateComment, deleteComment,
-  // Token Validation
-  validateToken
-} = require('./services/todoist');
+const { serviceCapabilities, legacyHandlers } = require('./intentRouter');
+const { validateToken, getAllTasks } = require('./services/todoist');
+
+// Initialize Supabase client
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
@@ -47,101 +35,6 @@ const openai = new OpenAI({
   defaultHeaders: { 'api-key': process.env.OPENAI_API_KEY }
 });
 
-// Service handlers mapping
-// Define service capabilities
-const serviceCapabilities = {
-  // Todoist capabilities
-  todoist: {
-    TASK: {
-      CREATE: createTask,
-      UPDATE: updateTask,
-      DELETE: deleteTask,
-      COMPLETE: completeTask,
-      UNCOMPLETE: uncompleteTask,
-      LIST: getAllTasks,
-      GET: getTaskById,
-      SEARCH: searchTasks
-    },
-    PROJECT: {
-      CREATE: createProject,
-      UPDATE: updateProject,
-      DELETE: deleteProject,
-      LIST: getAllProjects,
-      GET: getProjectById
-    },
-    SECTION: {
-      CREATE: createSection,
-      UPDATE: updateSection,
-      DELETE: deleteSection,
-      LIST: getSections
-    },
-    LABEL: {
-      CREATE: createLabel,
-      UPDATE: updateLabel,
-      DELETE: deleteLabel,
-      LIST: getAllLabels
-    },
-    COMMENT: {
-      CREATE: createComment,
-      UPDATE: updateComment,
-      DELETE: deleteComment,
-      LIST: getComments
-    }
-  },
-  
-  // Placeholder for future Zapier integration
-  zapier: {
-    EMAIL: {
-      SEND: null, // Will be implemented when Zapier is integrated
-      LIST: null,
-      SEARCH: null
-    },
-    CALENDAR_EVENT: {
-      CREATE: null,
-      UPDATE: null,
-      DELETE: null,
-      LIST: null
-    },
-    NOTE: {
-      CREATE: null,
-      UPDATE: null,
-      DELETE: null,
-      LIST: null
-    }
-  }
-};
-
-// Legacy handler mapping for backward compatibility
-const legacyHandlers = {
-  todoist: {
-    create_task: createTask,
-    update_task: updateTask,
-    delete_task: deleteTask,
-    complete_task: completeTask,
-    uncomplete_task: uncompleteTask,
-    check_tasks: getAllTasks,
-    get_task: getTaskById,
-    filter_tasks: getFilteredTasks,
-    search_tasks: searchTasks,
-    list_projects: getAllProjects,
-    get_project: getProjectById,
-    create_project: createProject,
-    update_project: updateProject,
-    delete_project: deleteProject,
-    list_sections: getSections,
-    create_section: createSection,
-    update_section: updateSection,
-    delete_section: deleteSection,
-    list_labels: getAllLabels,
-    create_label: createLabel,
-    update_label: updateLabel,
-    delete_label: deleteLabel,
-    list_comments: getComments,
-    create_comment: createComment,
-    update_comment: updateComment,
-    delete_comment: deleteComment
-  }
-};
 app.post("/agent", async (req, res) => {
   const input = req.body.input;
   const token = req.headers['authorization'];
@@ -158,7 +51,6 @@ app.post("/agent", async (req, res) => {
   }
 
   try {
-    console.log('Making OpenAI API request...');
     
     const completion = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
@@ -200,16 +92,7 @@ Output JSON Structure (return exactly this format with your values):
         * Communication: `EMAIL_SEND`, `MESSAGE_SEND` (infer app like 'gmail' or 'slack')
         * AI Interactions: `AI_CHAT` (or `AI_QUERY`), `AI_ANALYZE`, `AI_GENERATE`, `AI_SUMMARIZE`, `AI_TRANSLATE`
         * Music: `MUSIC_PLAY`, `MUSIC_ADD_TO_PLAYLIST`, `MUSIC_GET_INFO`
-    * Infer the most logical combination based on the user's full request.
-
-2.  **Target Application:** Map applications as follows:
-    * Tasks, projects, sections, labels, comments → "todoist"
-    * Emails, messages → "zapier" 
-    * Calendar events, meetings → "zapier"
-    * Notes, documents → "zapier"
-    * AI queries, generation → "openai"
-    * Music → "spotify"
-
+    * Map to appropriate target apps: tasks → "todoist", email → "zapier", calendar → "zapier", AI → "openai", music → "spotify"
 3.  **Parameter Extraction:** Extract all relevant details (title, description, date/time, people involved, project/label names, search query, etc.) into the 'parameters' object. Normalize dates/times to ISO format "YYYY-MM-DDThh:mm:ss" if possible.
 4.  **Confirmation Message:** Generate a short, user-friendly confirmation in English reflecting the action and key parameters (e.g., "OK, task '**Review PR**' created in project 'Work'.", "Showing your tasks for **today**.", "Playing '**Bohemian Rhapsody**' on Spotify.").
 5.  **Handling Missing Information:** Extract what's available. If critical info is missing for the *execution* later, the subsequent code should handle that; your job here is primarily interpretation into JSON.
@@ -238,61 +121,49 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
       ]
     });
     
-    console.log('Response received from OpenAI');
-    
     let parsedResponse;
     
     try {
       // Extract the content from the completion
       let responseText = completion.choices[0].message.content;
-      console.log('Processing response:', responseText.substring(0, 100) + '...');
       
-      // Advanced cleanup function for GPT responses
-      function cleanJsonResponse(text) {
-        // Initial trimming
-        let cleaned = text.trim();
+      // Clean and parse the JSON response
+      function parseJsonResponse(text) {
+        // Clean and extract valid JSON from response
+        let cleaned = text.trim()
+          // Remove code blocks if present
+          .replace(/^```(?:json)?\s*([\s\S]*?)```$/, '$1').trim()
+          // Extract JSON object if surrounded by other content
+          .match(/(\{[\s\S]*\})/)?.pop() || text.trim();
         
-        // Check if the response is wrapped in code blocks and remove them
-        const jsonBlockRegex = /^```(?:json)?\s*([\s\S]*?)```$/;
-        const jsonBlockMatch = cleaned.match(jsonBlockRegex);
-        
-        if (jsonBlockMatch) {
-          cleaned = jsonBlockMatch[1].trim();
-        }
-        
-        // Check for other markdown or text debris at the start or end
-        const jsonObjectRegex = /(\{[\s\S]*\})/;
-        const jsonObjectMatch = cleaned.match(jsonObjectRegex);
-        
-        if (jsonObjectMatch) {
-          cleaned = jsonObjectMatch[1].trim();
-        }
-        
-        // Final check - must start with { and end with }
+        // Validate JSON structure
         if (!cleaned.startsWith('{') || !cleaned.endsWith('}')) {
-          console.warn('Cleaned response still does not have proper JSON formatting');
-          // Last resort - try to find anything that looks like a JSON object
-          const lastResortMatch = text.match(/(\{[\s\S]*?\})/);
-          if (lastResortMatch) {
-            cleaned = lastResortMatch[1].trim();
-          }
+          throw new Error('Response is not a valid JSON object');
         }
         
-        return cleaned;
+        return JSON.parse(cleaned);
       }
       
-      // Apply advanced cleanup
-      const cleanedResponse = cleanJsonResponse(responseText);
-      console.log('Cleaned response for parsing:', cleanedResponse.substring(0, 50) + '...');
-      
-      // Validation before parsing
-      if (!cleanedResponse.startsWith('{') || !cleanedResponse.endsWith('}')) {
-        throw new Error('Response is not a valid JSON object after cleaning');
-      }
-      
-      // Parse the JSON response
-      try {
-        parsedResponse = JSON.parse(cleanedResponse);
+      // Parse the response
+      parsedResponse = parseJsonResponse(responseText);
+        
+        // Intent field validation and normalization
+        if (parsedResponse.intent !== undefined) {
+          // Ensure intent is a string
+          if (typeof parsedResponse.intent !== 'string') {
+            parsedResponse.intent = String(parsedResponse.intent);
+          }
+          
+          // Normalize ENTITY_ACTION format
+          if (parsedResponse.intent.includes('_')) {
+            const [entity, action] = parsedResponse.intent.split('_');
+            if (entity && action) {
+              parsedResponse.intent = `${entity.toUpperCase()}_${action.toUpperCase()}`;
+            }
+          }
+        } else {
+          parsedResponse.intent = "UNKNOWN_ACTION";
+        }
       } catch (jsonError) {
         console.error('JSON parsing failed after cleaning:', jsonError);
         throw new Error(`JSON parsing failed: ${jsonError.message}`);
@@ -304,44 +175,20 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
       }
     } catch (parseError) {
       console.error('Error parsing JSON response:', parseError);
-      const rawResponse = completion.choices[0]?.message?.content || "No content received";
       
-      // Advanced error response with more information for debugging
       return res.status(400).json({
         status: "error",
-        error: "GPT response is not valid JSON.",
-        error_details: parseError.message,
-        raw: rawResponse,
-        attempted_fixes: [
-          rawResponse.indexOf('```') >= 0 ? "Tried removing code blocks" : "No code blocks detected",
-          rawResponse.indexOf('{') >= 0 ? "Tried extracting JSON object" : "No JSON object detected"
-        ]
+        error: "GPT response is not valid JSON or is missing required fields.",
+        error_details: parseError.message
       });
     }
 
     const { intent, target_app, parameters } = parsedResponse;
-
-    if (!intent || !target_app || !parameters) {
-      return res.status(400).json({
-        status: "error",
-        error: "Returned JSON is incomplete. Expected: intent, target_app, parameters.",
-        raw: parsedResponse
-      });
-    }
-
-    // Log the interaction in Supabase
-    await supabase.from('entries').insert([
-      {
-        input,
-        response: JSON.stringify(parsedResponse)
-      }
-    ]);
-
-    // Handle the intent with the appropriate service
     let handler;
     
-    // Check for ENTITY_ACTION format first (new format)
+    // Find appropriate handler based on intent format
     if (intent.includes('_')) {
+      // Try ENTITY_ACTION format first (new format)
       const [entity, action] = intent.split('_');
       handler = serviceCapabilities[target_app]?.[entity]?.[action];
     }
@@ -353,56 +200,18 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
 
     if (handler) {
       try {
-        console.log('Executing handler for intent:', intent);
         const result = await handler(parameters);
         
-        let additionalInfo = "";
+        // Create response with link if available
+        let additionalInfo = result?.url ? 
+          `\n[View ${intent.includes('_') ? intent.split('_')[0] : 'item'} in ${target_app}](${result.url})` : 
+          "";
         
-        if (result?.url) {
-          // Detect language based on the confirmation message
-          const languageDetection = {
-            // Words that indicate Portuguese
-            pt: ['tarefa', 'criada', 'concluída', 'atualizada', 'excluída', 'encontrada', 'projeto', 'reunião', 'marcada'],
-            // Words that indicate Spanish (for future use)
-            es: ['tarea', 'creada', 'completada', 'actualizada', 'eliminada', 'encontrada', 'proyecto', 'reunión'],
-            // French words (for future use)
-            fr: ['tâche', 'créée', 'terminée', 'mise à jour', 'supprimée', 'trouvée', 'projet', 'réunion']
-          };
-          
-          // Default to English
-          let language = 'en';
-          
-          // Check each language for matches
-          for (const [lang, words] of Object.entries(languageDetection)) {
-            if (words.some(word => parsedResponse.confirmation_message.toLowerCase().includes(word))) {
-              language = lang;
-              break;
-            }
-          }
-          
-          // Extract entity from intent if it exists
-          let entity = '';
-          if (intent.includes('_')) {
-            entity = intent.split('_')[0];
-          }
-          
-          // Set link text based on detected language
-          const linkText = {
-            en: `View ${entity || 'item'} in ${target_app}`,
-            pt: `Ver ${entity === 'TASK' ? 'tarefa' : entity === 'PROJECT' ? 'projeto' : 'item'} no ${target_app}`,
-            es: `Ver ${entity === 'TASK' ? 'tarea' : entity === 'PROJECT' ? 'proyecto' : 'elemento'} en ${target_app}`,
-            fr: `Voir ${entity === 'TASK' ? 'tâche' : entity === 'PROJECT' ? 'projet' : 'élément'} dans ${target_app}`
-          };
-          
-          additionalInfo = `\n[${linkText[language] || linkText.en}](${result.url})`;
-        }
-        
-        const message = `${parsedResponse.confirmation_message}${additionalInfo}`;
         return res.status(200).json({
           received: input,
           response: parsedResponse,
           result,
-          message
+          message: `${parsedResponse.confirmation_message}${additionalInfo}`
         });
       } catch (e) {
         console.error('Error executing handler:', e);
@@ -422,12 +231,11 @@ ANY deviation from pure JSON output will cause the integration to FAIL.`
     });
 
   } catch (error) {
-    console.error("OpenAI API Error:", error?.response?.data || error.message || error);
+    console.error("API Error:", error?.response?.data || error.message || error);
     res.status(500).json({
       status: "error",
       error: "Failed to process request.",
-      details: error.message,
-      raw_error: error
+      details: error.message
     });
   }
 });
@@ -438,20 +246,11 @@ app.get("/", (req, res) => {
     status: "healthy",
     message: "👋 AI Agent Online! (EN/PT-BR)",
     timestamp: new Date().toISOString(),
-    version: "1.0.0",
+    version: "1.1.0",
     headers: {
       'cf-ray': req.headers['cf-ray'],
       'cf-connecting-ip': req.headers['cf-connecting-ip']
     }
-  });
-});
-
-// Debug endpoint
-app.post("/debug", (req, res) => {
-  res.json({
-    received: req.body,
-    headers: req.headers,
-    ip: req.ip
   });
 });
 
@@ -473,8 +272,7 @@ app.get("/tasks", async (req, res) => {
   }
 });
 
-
-// Validate configuration before starting server
+// Validate configuration and start server
 async function startServer() {
   try {
     // Validate Todoist token
@@ -483,12 +281,7 @@ async function startServer() {
     
     // Start the server
     app.listen(PORT, HOST, () => {
-      console.log(`Server running on ${HOST}:${PORT}`);
-      console.log(`Health check available at http://${HOST}:${PORT}/`);
-      console.log('OpenAI Configuration:', {
-        baseURL: process.env.OPENAI_BASE_URL,
-        apiKeyPrefix: process.env.OPENAI_API_KEY.substring(0, 10) + '...'
-      });
+      console.log(`AI Agent server running on ${HOST}:${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
