@@ -1,0 +1,188 @@
+import type { CreateTodoistTaskParams, UpdateTodoistTaskParams, TodoistTask } from '../types';
+
+const API_BASE = 'https://api.todoist.com/rest/v2';
+
+const TODOIST_API_KEY: string | undefined = process.env.TODOIST_API_KEY;
+
+if (TODOIST_API_KEY) {
+  console.log(`Using Todoist API key from process.env.TODOIST_API_KEY. Key: ${TODOIST_API_KEY.substring(0, 4) + "..." }`);
+} else {
+  console.warn(`Todoist API key not found in process.env.TODOIST_API_KEY. Please set it in your deployment environment (e.g., Render) if you intend to use Todoist features.`);
+}
+
+
+export function isTodoistApiKeyAvailable(): boolean {
+  return !!TODOIST_API_KEY;
+}
+
+async function handleTodoistResponse(response: Response) {
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Todoist API Error Details:', {
+      status: response.status,
+      statusText: response.statusText,
+      error: errorText,
+      responseBody: errorText // Log the raw error text
+    });
+    throw new Error(`Todoist API error: ${response.status} ${response.statusText} - ${errorText || 'No additional error message.'}`);
+  }
+
+  if (response.status === 204) { // No Content, typically for DELETE, POST (close/reopen)
+    return { success: true };
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    console.warn('Todoist API response was not JSON, though request was successful:', response);
+    return { success: true, message: 'Operation successful, no content returned.' };
+  }
+}
+
+// Task Management
+export async function createTask(params: CreateTodoistTaskParams): Promise<TodoistTask> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  console.log('Creating Todoist task. Params:', params);
+
+  const body: Record<string, any> = { content: params.content };
+  if (params.description) body.description = params.description;
+  if (params.project_id) body.project_id = params.project_id;
+  if (params.section_id) body.section_id = params.section_id;
+  if (params.parent_id) body.parent_id = params.parent_id;
+  if (params.order) body.order = params.order;
+  if (params.labels && params.labels.length > 0) body.labels = params.labels;
+  if (params.priority) body.priority = params.priority;
+  if (params.due_string) body.due_string = params.due_string;
+  if (params.due_date) body.due_date = params.due_date;
+  if (params.due_datetime) body.due_datetime = params.due_datetime;
+  if (params.due_lang) body.due_lang = params.due_lang;
+
+  const response = await fetch(`${API_BASE}/tasks`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${TODOIST_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  return handleTodoistResponse(response);
+}
+
+export async function getAllTasks(): Promise<TodoistTask[]> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  console.log('Fetching all Todoist tasks.');
+
+  const response = await fetch(`${API_BASE}/tasks`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${TODOIST_API_KEY}` },
+  });
+  return handleTodoistResponse(response);
+}
+
+async function findTaskByTitle(title: string): Promise<TodoistTask | undefined> {
+    const tasks = await getAllTasks();
+    return tasks.find(t => t.content.toLowerCase().includes(title.toLowerCase()));
+}
+
+
+export async function updateTask(taskIdOrTitle: string, updates: UpdateTodoistTaskParams): Promise<TodoistTask> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  let effectiveTaskId = taskIdOrTitle;
+
+  if (!/^\d+$/.test(taskIdOrTitle)) { // If not a numeric ID, assume it's a title
+    const task = await findTaskByTitle(taskIdOrTitle);
+    if (task) effectiveTaskId = task.id;
+    else throw new Error(`Task with title "${taskIdOrTitle}" not found for update.`);
+  }
+  
+  console.log('Updating Todoist task:', { taskId: effectiveTaskId, updates });
+
+  const response = await fetch(`${API_BASE}/tasks/${effectiveTaskId}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${TODOIST_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+  await handleTodoistResponse(response); 
+  // Since Todoist returns 204 for update, we fetch the task to return its updated state
+  return getTaskById(effectiveTaskId);
+}
+
+export async function deleteTask(taskIdOrTitle: string): Promise<{ success: boolean, id?: string }> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  let taskId = taskIdOrTitle;
+
+  if (!/^\d+$/.test(taskIdOrTitle)) {
+      const task = await findTaskByTitle(taskIdOrTitle);
+      if (task) taskId = task.id;
+      else throw new Error(`Task with title "${taskIdOrTitle}" not found for deletion.`);
+  }
+  
+  console.log('Deleting Todoist task:', { taskId });
+
+  const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${TODOIST_API_KEY}` },
+  });
+  await handleTodoistResponse(response);
+  return { success: true, id: taskId };
+}
+
+export async function completeTask(taskIdOrTitle: string): Promise<{ success: boolean, id?: string }> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  let taskId = taskIdOrTitle;
+
+  if (!/^\d+$/.test(taskIdOrTitle)) {
+      const task = await findTaskByTitle(taskIdOrTitle);
+      if (task) {
+        if (task.is_completed) return { success: true, id: task.id, message: "Task already completed." } as any;
+        taskId = task.id;
+      }
+      else throw new Error(`Task with title "${taskIdOrTitle}" not found for completion.`);
+  }
+
+  console.log('Completing Todoist task:', { taskId });
+
+  const response = await fetch(`${API_BASE}/tasks/${taskId}/close`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TODOIST_API_KEY}` },
+  });
+  await handleTodoistResponse(response);
+  return { success: true, id: taskId };
+}
+
+export async function uncompleteTask(taskIdOrTitle: string): Promise<{ success: boolean, id?: string }> {
+  if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+  let taskId = taskIdOrTitle;
+
+   if (!/^\d+$/.test(taskIdOrTitle)) {
+      const task = await findTaskByTitle(taskIdOrTitle);
+      if (task) {
+         if (!task.is_completed) return { success: true, id: task.id, message: "Task already open." } as any;
+         taskId = task.id;
+      }
+      else throw new Error(`Task with title "${taskIdOrTitle}" not found for reopening.`);
+  }
+  
+  console.log('Reopening Todoist task:', { taskId });
+
+  const response = await fetch(`${API_BASE}/tasks/${taskId}/reopen`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${TODOIST_API_KEY}` },
+  });
+  await handleTodoistResponse(response);
+  return { success: true, id: taskId };
+}
+
+export async function getTaskById(taskId: string): Promise<TodoistTask> {
+    if (!isTodoistApiKeyAvailable() || !TODOIST_API_KEY) throw new Error('Todoist API key is not configured or is invalid.');
+    console.log('Fetching Todoist task by ID:', { taskId });
+
+    const response = await fetch(`${API_BASE}/tasks/${taskId}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${TODOIST_API_KEY}` },
+    });
+    return handleTodoistResponse(response);
+}
