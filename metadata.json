@@ -1,0 +1,5 @@
+{
+  "name": "Personal Agent with Gemini",
+  "description": "A personal agent powered by Google Gemini to understand your requests, provide information, and suggest actions for productivity tools like Todoist. Interact via a chat interface and let the agent assist you.",
+  "requestFramePermissions": []
+}
